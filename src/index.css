@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-scada-dark text-scada-text antialiased;
+    margin: 0;
+    overflow-x: hidden;
+  }
+}
