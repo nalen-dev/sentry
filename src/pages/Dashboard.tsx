@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Activity, Settings, Sun, Moon, Maximize2, Minimize2, Map as MapIcon, Layout, AlertTriangle, Wifi, Clock, History, Search, List, X, Grid, LineChart, User, MapPin } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Activity, Settings, Sun, Moon, Maximize2, Minimize2, Map as MapIcon, Layout, AlertTriangle, Wifi, Clock, History, Search, List, X, Grid, LineChart, User, MapPin, LogOut } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Tooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import SegmentDetailModal, { SegmentData } from '../components/SegmentDetailModal';
 
 // Komponen helper untuk mengontrol map secara dinamis
 function MapController({ isFullscreen }: { isFullscreen: boolean }) {
@@ -45,10 +47,28 @@ export default function Dashboard() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
+  // Auth State
+  const navigate = useNavigate();
+  const [userRole, setUserRole] = useState('OPERATOR');
+  const [userId, setUserId] = useState('OP-7729');
+
+  useEffect(() => {
+    const role = localStorage.getItem('userRole');
+    const id = localStorage.getItem('userId');
+    if (role) setUserRole(role);
+    if (id) setUserId(id);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userId');
+    navigate('/login');
+  };
   // Area List States
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showDataModal, setShowDataModal] = useState(false);
+  const [selectedSegment, setSelectedSegment] = useState<SegmentData | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
 
   useEffect(() => {
@@ -68,12 +88,15 @@ export default function Dashboard() {
   }, []);
 
   // Dummy area data based on request (increased to 42 for pagination testing)
-  const areas = Array.from({ length: 42 }, (_, i) => ({
+  const areas: SegmentData[] = Array.from({ length: 42 }, (_, i) => ({
     id: `A-${i + 1}`,
     name: `Segment ${i + 1}`,
     distance: `${(i + 1) * 150}m`,
     temp: (30 + Math.random() * 20).toFixed(1),
-    isAlarm: Math.random() > 0.95 // 5% chance of alarm
+    isAlarm: Math.random() > 0.95, // 5% chance of alarm
+    group: i < 10 ? 'BC Main-01' : i < 20 ? 'BC Main-02' : i < 30 ? 'Top Feeders' : 'Bottom Feeders',
+    areaLocation: `Zone ${String.fromCharCode(65 + (i % 5))}`, // Zone A, B, C...
+    notes: ''
   }));
 
   // Filter and Pagination Logic
@@ -173,14 +196,24 @@ export default function Dashboard() {
             <div className="h-8 w-px bg-border"></div>
             
             {/* LOGIN INFORMATION */}
-            <div className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity">
-              <div className="text-right hidden sm:block">
-                <div className="text-sm font-bold text-text-primary">ADMINISTRATOR</div>
-                <div className="text-xs text-text-secondary font-mono">ID: OP-7729</div>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity">
+                <div className="text-right hidden sm:block">
+                  <div className="text-sm font-bold text-text-primary">{userRole}</div>
+                  <div className="text-xs text-text-secondary font-mono">ID: {userId}</div>
+                </div>
+                <div className="h-10 w-10 bg-bg-surface border border-border rounded-full flex items-center justify-center overflow-hidden">
+                  <User size={20} className="text-text-secondary" />
+                </div>
               </div>
-              <div className="h-10 w-10 bg-bg-surface border border-border rounded-full flex items-center justify-center overflow-hidden">
-                <User size={20} className="text-text-secondary" />
-              </div>
+              
+              <button 
+                onClick={handleLogout}
+                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/30"
+                title="Logout"
+              >
+                <LogOut size={20} />
+              </button>
             </div>
           </div>
         </header>
@@ -548,6 +581,7 @@ export default function Dashboard() {
                   return (
                     <div 
                       key={area.id} 
+                      onClick={() => setSelectedSegment(area)}
                       className={`p-3 rounded-xl flex flex-col cursor-pointer transition-all hover:-translate-y-1 shadow-lg backdrop-blur-md border
                         ${area.isAlarm 
                           ? 'bg-bg-alarm/95 border-red-500 shadow-[0_0_15px_rgba(240,71,71,0.3)]' 
@@ -700,7 +734,7 @@ export default function Dashboard() {
                     </thead>
                     <tbody className="divide-y divide-border">
                       {areas.map((area, idx) => (
-                        <tr key={area.id} className={`hover:bg-white/[0.02] transition-colors ${area.isAlarm ? 'bg-red-950/20' : ''}`}>
+                        <tr key={area.id} onClick={() => setSelectedSegment(area)} className={`cursor-pointer hover:bg-white/[0.02] transition-colors ${area.isAlarm ? 'bg-red-950/20' : ''}`}>
                           <td className="py-3 px-6 font-mono text-text-secondary text-sm">#{String(idx + 1).padStart(3, '0')}</td>
                           <td className="py-3 px-6 font-bold text-text-primary">{area.name}</td>
                           <td className="py-3 px-6 font-mono text-text-secondary">{area.distance}</td>
@@ -732,6 +766,7 @@ export default function Dashboard() {
                     {areas.map(area => (
                       <div 
                         key={area.id} 
+                        onClick={() => setSelectedSegment(area)}
                         className={`p-4 rounded-xl flex flex-col cursor-pointer transition-all hover:scale-105 shadow-xl backdrop-blur-sm border
                           ${area.isAlarm 
                             ? 'bg-bg-alarm border-red-500/50 shadow-[0_0_15px_rgba(240,71,71,0.3)]' 
@@ -759,6 +794,15 @@ export default function Dashboard() {
 
             </div>
           </div>
+        )}
+
+        {/* SEGMENT DETAIL MODAL */}
+        {selectedSegment && (
+          <SegmentDetailModal 
+            segment={selectedSegment} 
+            onClose={() => setSelectedSegment(null)} 
+            userRole={userRole}
+          />
         )}
 
       </div>
