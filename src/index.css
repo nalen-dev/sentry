@@ -1,11 +1,70 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer base {
-  body {
-    @apply bg-scada-dark text-scada-text antialiased;
-    margin: 0;
-    overflow-x: hidden;
-  }
+@theme {
+  --color-scada-primary: #06b6d4; /* UI Accent (Cyan) */
+  --color-scada-success: #43b581; /* Status Safe (Green) */
+  --color-scada-accent: #3b82f6;  /* Secondary Accent (Blue) */
+  --color-scada-alert: #f04747;   /* Status Danger (Red) */
+
+  --color-bg-base: var(--bg-base);
+  --color-bg-panel: var(--bg-panel);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-alarm: var(--bg-alarm);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border: var(--border-color);
+  
+  --shadow-scada-inset: var(--shadow-inset);
+
+  --font-sans: 'Rajdhani', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+:root {
+  /* LIGHT THEME */
+  --bg-base: #f3f4f6;
+  --bg-panel: #ffffff;
+  --bg-surface: #f8fafc;
+  --bg-alarm: #fee2e2;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --shadow-inset: inset 0 0 20px rgba(0,0,0,0.05);
+}
+
+.dark {
+  /* DARK THEME */
+  --bg-base: #050608;
+  --bg-panel: #0a0c10;
+  --bg-surface: #11141a;
+  --bg-alarm: rgba(42, 8, 8, 0.85);
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --shadow-inset: inset 0 0 40px rgba(0,0,0,0.8);
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  margin: 0;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scada-primary);
 }

@@ -1,0 +1,8 @@
+              <div className="h-px w-full bg-border"></div>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsDarkMode(!isDarkMode); }}
+                className="p-3 text-text-secondary hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center"
+                title="Toggle Theme"
+              >
+                {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+              </button>
