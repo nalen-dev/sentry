@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Lock, User, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Lock, User, ShieldCheck, AlertCircle } from 'lucide-react';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -44,15 +44,9 @@ export default function Login() {
 
       <div className="relative z-10 w-full max-w-md bg-[#11141a]/90 backdrop-blur-xl border border-[#2a303c] rounded-2xl shadow-2xl overflow-hidden p-8">
         
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center p-3 bg-[#06b6d4]/10 rounded-xl mb-4 shadow-[0_0_20px_rgba(6,182,212,0.2)]">
-            <Activity className="w-10 h-10 text-[#06b6d4]" />
-          </div>
-          <h1 className="text-3xl font-bold text-white tracking-widest uppercase flex flex-col">
-            <span>KAG SCADA</span>
-            <span className="text-[#06b6d4] text-xl mt-1">Digital Twin</span>
-          </h1>
-          <p className="text-sm text-gray-400 mt-2 font-mono tracking-wide">FIBER OPTIC MONITORING SYSTEM</p>
+        <div className="text-center mb-10 flex flex-col items-center">
+          <img src="/sentry-logo.jpg" alt="SENTRY Logo" className="w-auto h-24 mb-4 object-contain rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.2)]" />
+          <p className="text-sm text-gray-400 mt-2 font-mono tracking-wide">INTEGRATED SCADA PLATFORM</p>
         </div>
         
         {error && (

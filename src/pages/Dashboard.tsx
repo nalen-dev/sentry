@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Activity, Settings, Sun, Moon, Maximize2, Minimize2, Map as MapIcon, Layout, AlertTriangle, Wifi, Clock, History, Search, List, X, Grid, LineChart, User, MapPin, LogOut } from 'lucide-react';
-import { MapContainer, TileLayer, Polyline, Tooltip, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import SegmentDetailModal, { SegmentData } from '../components/SegmentDetailModal';
@@ -11,10 +11,10 @@ function MapController({ isFullscreen }: { isFullscreen: boolean }) {
   const map = useMap();
 
   useEffect(() => {
-    // Kordinat ujung-ke-ujung conveyor
+    // Kordinat ujung-ke-ujung conveyor (BC MAIN 01 & 02)
     const conveyorBounds: L.LatLngBoundsExpression = [
-      [-0.3076283024687055, 115.85749409146369], // SW
-      [-0.29970261465644, 115.86817796519595]  // NE
+      [-0.308000, 115.857000], // SW
+      [-0.299000, 115.869000]  // NE
     ];
 
     if (isFullscreen) {
@@ -42,10 +42,53 @@ function MapController({ isFullscreen }: { isFullscreen: boolean }) {
   return null;
 }
 
+// Komponen helper untuk melacak zoom level
+function MapZoomListener({ setMapZoom }: { setMapZoom: (zoom: number) => void }) {
+  const map = useMapEvents({
+    zoomend: () => {
+      setMapZoom(map.getZoom());
+    }
+  });
+  return null;
+}
+
+// Helper: Proyeksi ortogonal untuk mencari titik terdekat (tegak lurus) dari sebuah poin ke jalur polyline
+function getClosestPointOnPath(point: [number, number], path: [number, number][]): [number, number] {
+  let closestDist = Infinity;
+  let closestPoint = path[0];
+
+  for (let i = 0; i < path.length - 1; i++) {
+    const A = path[i];
+    const B = path[i+1];
+    
+    const dx = B[0] - A[0];
+    const dy = B[1] - A[1];
+    
+    const lengthSquared = dx * dx + dy * dy;
+    
+    let t = 0;
+    if (lengthSquared !== 0) {
+      t = ((point[0] - A[0]) * dx + (point[1] - A[1]) * dy) / lengthSquared;
+      t = Math.max(0, Math.min(1, t)); // clamp to segment
+    }
+    
+    const projX = A[0] + t * dx;
+    const projY = A[1] + t * dy;
+    
+    const distSq = (point[0] - projX) ** 2 + (point[1] - projY) ** 2;
+    if (distSq < closestDist) {
+      closestDist = distSq;
+      closestPoint = [projX, projY];
+    }
+  }
+  return closestPoint;
+}
+
 export default function Dashboard() {
   const [viewMode, setViewMode] = useState<'satellite' | 'diagram'>('satellite');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [mapZoom, setMapZoom] = useState(15); // Default zoom level
   
   // Auth State
   const navigate = useNavigate();
@@ -139,6 +182,54 @@ export default function Dashboard() {
     { id: 5, time: '13:42:01', msg: 'User Administrator logged in', type: 'info' },
   ];
 
+  // Exact coordinates for FO pulls (BC MAIN to Control Room)
+  const bcMainCoordinates: [number, number][] = [
+    [-0.307605, 115.857705],
+    [-0.307412, 115.857963],
+    [-0.307134, 115.858360],
+    [-0.306937, 115.858619],
+    [-0.306666, 115.859017],
+    [-0.306469, 115.859277],
+    [-0.306196, 115.859674],
+    [-0.305998, 115.859932],
+    [-0.305721, 115.860333],
+    [-0.305526, 115.860586],
+    [-0.305247, 115.860989],
+    [-0.305050, 115.861242],
+    [-0.304835, 115.861564],
+    [-0.304692, 115.861764] // New extended endpoint to Control Room
+  ];
+
+  // Coordinates for BC MAIN 02
+  const bcMain02Coordinates: [number, number][] = [
+    [-0.304668, 115.861801],
+    [-0.303334, 115.863633],
+    [-0.301602, 115.866023],
+    [-0.300542, 115.867486],
+    [-0.300477, 115.867567],
+    [-0.299693, 115.868240]
+  ];
+
+  // Tunnel Sensor Points
+  const tunnelSensors = {
+    foD: [ // Connected to FO D (Bottom / Normal)
+      [-0.307698, 115.857773], // BF1
+      [-0.307223, 115.858430], // BF2
+      [-0.306736, 115.859074], // BF3
+      [-0.306292, 115.859751], // BF4
+      [-0.306274, 115.859740], // BF5
+      [-0.305826, 115.860419]  // BF6 (Updated)
+    ] as [number, number][],
+    foB: [ // Connected to FO B (Warning)
+      [-0.306241, 115.859110], // TF4
+      [-0.305751, 115.859768]  // TF3 (Updated)
+    ] as [number, number][],
+    foA: [ // Connected to FO A (Top / Normal)
+      [-0.305332, 115.860463], // TF1
+      [-0.304790, 115.861078]  // TF2
+    ] as [number, number][]
+  };
+
   // Dummy Chart Data
   const dummyChartData = [
     { time: '13:00', temp: 32 },
@@ -153,71 +244,79 @@ export default function Dashboard() {
     <div className="h-screen bg-bg-base flex flex-col text-text-primary overflow-hidden font-sans">
       
       {/* TOP MENU BAR */}
-      {!isFullscreen && (
-        <header className="h-16 bg-bg-panel border-b border-border flex items-center px-6 shrink-0 justify-between shadow-md z-30">
-          
-          {/* TITLE */}
+      <header className={`z-30 transition-all duration-500 flex items-center shadow-md border-border ${
+        isFullscreen 
+          ? 'absolute top-4 left-1/2 transform -translate-x-1/2 h-14 bg-bg-panel/90 backdrop-blur-md border rounded-2xl px-4 space-x-4' 
+          : 'h-16 bg-bg-panel border-b px-6 shrink-0 justify-between w-full'
+      }`}>
+        
+        {/* TITLE */}
+        <div className="flex items-center">
           <div className="flex items-center">
-            <div>
-              <h1 className="text-xl font-bold text-text-primary tracking-widest uppercase flex items-center">
-                <Activity className="text-scada-primary mr-2" size={24} />
-                DTS GIS INTEGRATION
-              </h1>
-              <p className="text-xs text-text-secondary font-mono">FIBER OPTIC MONITORING</p>
-            </div>
+            <img src="/sentry-logo-noname.jpg" alt="SENTRY" className={`w-auto object-contain rounded-md transition-all duration-500 ${isFullscreen ? 'h-8 mr-0' : 'h-10 mr-3'}`} />
+            {!isFullscreen && (
+              <div>
+                <h1 className="text-xl font-bold text-text-primary tracking-widest uppercase flex items-center">
+                  SENTRY SCADA
+                </h1>
+                <p className="text-xs text-text-secondary font-mono">DTS MONITORING MODULE</p>
+              </div>
+            )}
           </div>
+        </div>
+        
+        {/* NAVIGATION & USER */}
+        <div className={`flex items-center ${isFullscreen ? 'space-x-2' : 'space-x-6'}`}>
           
-          {/* NAVIGATION & USER */}
-          <div className="flex items-center space-x-6">
-            
-            <nav className="flex items-center space-x-6 mr-4">
-              <button className="text-scada-primary font-bold text-sm transition-colors flex items-center tracking-widest">
-                <Layout size={16} className="mr-2" /> DASHBOARD
-              </button>
-              <button className="text-text-secondary hover:text-text-primary font-bold text-sm transition-colors flex items-center tracking-widest">
-                <History size={16} className="mr-2" /> LOGS
-              </button>
-              <button className="text-text-secondary hover:text-text-primary font-bold text-sm transition-colors flex items-center tracking-widest">
-                <LineChart size={16} className="mr-2" /> CHART
-              </button>
-              <button className="text-text-secondary hover:text-text-primary font-bold text-sm transition-colors flex items-center tracking-widest">
-                <Settings size={16} className="mr-2" /> SETTING
-              </button>
-            </nav>
-
-            <button 
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2 text-text-secondary hover:text-text-primary bg-bg-surface border border-border rounded-lg transition-colors"
-              title="Toggle Theme"
-            >
-              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+          <nav className={`flex items-center ${isFullscreen ? 'space-x-2' : 'space-x-6 mr-4'}`}>
+            <button className={`text-scada-primary font-bold transition-colors flex items-center tracking-widest ${isFullscreen ? 'p-2 rounded-lg bg-scada-primary/10' : 'text-sm'}`} title="Dashboard">
+              <Layout size={16} className={!isFullscreen ? "mr-2" : ""} /> {!isFullscreen && "DASHBOARD"}
             </button>
-            
-            <div className="h-8 w-px bg-border"></div>
-            
-            {/* LOGIN INFORMATION */}
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity">
+            <button className={`text-text-secondary hover:text-text-primary font-bold transition-colors flex items-center tracking-widest ${isFullscreen ? 'p-2 rounded-lg hover:bg-bg-surface' : 'text-sm'}`} title="Logs">
+              <History size={16} className={!isFullscreen ? "mr-2" : ""} /> {!isFullscreen && "LOGS"}
+            </button>
+            <button className={`text-text-secondary hover:text-text-primary font-bold transition-colors flex items-center tracking-widest ${isFullscreen ? 'p-2 rounded-lg hover:bg-bg-surface' : 'text-sm'}`} title="Chart">
+              <LineChart size={16} className={!isFullscreen ? "mr-2" : ""} /> {!isFullscreen && "CHART"}
+            </button>
+            <button className={`text-text-secondary hover:text-text-primary font-bold transition-colors flex items-center tracking-widest ${isFullscreen ? 'p-2 rounded-lg hover:bg-bg-surface' : 'text-sm'}`} title="Setting">
+              <Settings size={16} className={!isFullscreen ? "mr-2" : ""} /> {!isFullscreen && "SETTING"}
+            </button>
+          </nav>
+
+          <button 
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className={`text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center ${isFullscreen ? 'p-2 rounded-lg hover:bg-bg-surface' : 'p-2 bg-bg-surface border border-border rounded-lg'}`}
+            title="Toggle Theme"
+          >
+            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+          
+          <div className="h-8 w-px bg-border"></div>
+          
+          {/* LOGIN INFORMATION */}
+          <div className={`flex items-center ${isFullscreen ? 'space-x-2' : 'space-x-4'}`}>
+            <div className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity" title={`${userRole} (${userId})`}>
+              {!isFullscreen && (
                 <div className="text-right hidden sm:block">
                   <div className="text-sm font-bold text-text-primary">{userRole}</div>
                   <div className="text-xs text-text-secondary font-mono">ID: {userId}</div>
                 </div>
-                <div className="h-10 w-10 bg-bg-surface border border-border rounded-full flex items-center justify-center overflow-hidden">
-                  <User size={20} className="text-text-secondary" />
-                </div>
+              )}
+              <div className="h-10 w-10 bg-bg-surface border border-border rounded-full flex items-center justify-center overflow-hidden">
+                <User size={20} className="text-text-secondary" />
               </div>
-              
-              <button 
-                onClick={handleLogout}
-                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/30"
-                title="Logout"
-              >
-                <LogOut size={20} />
-              </button>
             </div>
+            
+            <button 
+              onClick={handleLogout}
+              className={`text-red-400 hover:text-red-300 transition-colors flex items-center justify-center ${isFullscreen ? 'p-2 rounded-lg hover:bg-red-500/10' : 'p-2 hover:bg-red-500/10 rounded-lg border border-transparent hover:border-red-500/30'}`}
+              title="Logout"
+            >
+              <LogOut size={20} />
+            </button>
           </div>
-        </header>
-      )}
+        </div>
+      </header>
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 relative overflow-hidden bg-bg-base flex">
@@ -228,13 +327,13 @@ export default function Dashboard() {
             <div className="w-full h-full relative z-0">
               <MapContainer 
                 bounds={[
-                  [-0.3076283024687055, 115.85749409146369],
-                  [-0.29970261465644, 115.86817796519595]
+                  [-0.308000, 115.857000],
+                  [-0.299000, 115.869000]
                 ]}
-                minZoom={14}
-                maxZoom={20}
+                minZoom={15}
+                maxZoom={21}
                 maxBounds={[
-                  [-0.315000, 115.845000],
+                  [-0.315000, 115.850000],
                   [-0.290000, 115.880000]
                 ]}
                 maxBoundsViscosity={1.0}
@@ -242,34 +341,123 @@ export default function Dashboard() {
                 zoomControl={false}
               >
                 <MapController isFullscreen={isFullscreen} />
+                <MapZoomListener setMapZoom={setMapZoom} />
                 
                 {/* GOOGLE SATELLITE TILE SERVER */}
                 <TileLayer
                   url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
                   attribution="&copy; Google Maps"
+                  maxNativeZoom={18}
+                  maxZoom={21}
                 />
                 
-                {/* DUMMY FIBER OPTIC LINE (South West to North East) */}
+                {/* DEFAULT VIEW (Zoom Out): Show 1 thick line representing the entire cable route */}
+                {mapZoom < 18 && (
+                  <Polyline 
+                    positions={bcMainCoordinates} 
+                    pathOptions={{ color: '#43b581', weight: 5 }}
+                  >
+                    <Tooltip sticky>FO CABLE BUNDLE (A, B, C, D)</Tooltip>
+                  </Polyline>
+                )}
+
+                {/* DETAILED VIEW (Zoom In): Show all 4 cables offset from each other */}
+                {/* Kabel disusun A, B, C, D dari atas ke bawah */}
+                {mapZoom >= 18 && (
+                  <>
+                    {/* CABLE A (Top) - Starts from index 9 */}
+                    <Polyline 
+                      positions={bcMainCoordinates.slice(9).map(p => [p[0] + 0.000025, p[1] - 0.000025])} 
+                      pathOptions={{ color: '#43b581', weight: 3 }} // Normal
+                    >
+                      <Tooltip sticky>CABLE A - Normal</Tooltip>
+                    </Polyline>
+
+                    {/* CABLE B - Starts from index 5 */}
+                    <Polyline 
+                      positions={bcMainCoordinates.slice(5).map(p => [p[0] + 0.000008, p[1] - 0.000008])} 
+                      pathOptions={{ color: '#eab308', weight: 3 }} // Warning
+                    >
+                      <Tooltip sticky>CABLE B - Warning</Tooltip>
+                    </Polyline>
+
+                    {/* CABLE C - Full Length */}
+                    <Polyline 
+                      positions={bcMainCoordinates.map(p => [p[0] - 0.000008, p[1] + 0.000008])} 
+                      pathOptions={{ color: '#f04747', weight: 3, className: 'animate-pulse' }} // Danger
+                    >
+                      <Tooltip sticky>CABLE C - Danger (Overheat)</Tooltip>
+                    </Polyline>
+
+                    {/* CABLE D (Bottom) - Full Length */}
+                    <Polyline 
+                      positions={bcMainCoordinates.map(p => [p[0] - 0.000025, p[1] + 0.000025])} 
+                      pathOptions={{ color: '#43b581', weight: 3 }} // Normal
+                    >
+                      <Tooltip sticky>CABLE D - Normal</Tooltip>
+                    </Polyline>
+                  </>
+                )}
+                {/* TUNNEL CONNECTIONS */}
+                {/* Connected to FO D (Offset: -0.000025, +0.000025) */}
+                {tunnelSensors.foD.map((sensorPoint, idx) => {
+                  const baseProj = getClosestPointOnPath(sensorPoint, bcMainCoordinates);
+                  const targetPoint = mapZoom >= 18 
+                    ? [baseProj[0] - 0.000025, baseProj[1] + 0.000025] as [number, number]
+                    : baseProj;
+                  return (
+                    <Polyline 
+                      key={`foD-${idx}`}
+                      positions={[sensorPoint, targetPoint]}
+                      pathOptions={{ color: '#43b581', weight: 3 }}
+                    >
+                      <Tooltip sticky>Tunnel connected to FO D</Tooltip>
+                    </Polyline>
+                  );
+                })}
+
+                {/* Connected to FO B (Offset: +0.000008, -0.000008) */}
+                {tunnelSensors.foB.map((sensorPoint, idx) => {
+                  const baseProj = getClosestPointOnPath(sensorPoint, bcMainCoordinates.slice(5));
+                  const targetPoint = mapZoom >= 18 
+                    ? [baseProj[0] + 0.000008, baseProj[1] - 0.000008] as [number, number]
+                    : baseProj;
+                  return (
+                    <Polyline 
+                      key={`foB-${idx}`}
+                      positions={[sensorPoint, targetPoint]}
+                      pathOptions={{ color: '#eab308', weight: 3 }}
+                    >
+                      <Tooltip sticky>Tunnel connected to FO B</Tooltip>
+                    </Polyline>
+                  );
+                })}
+
+                {/* Connected to FO A (Offset: +0.000025, -0.000025) */}
+                {tunnelSensors.foA.map((sensorPoint, idx) => {
+                  const baseProj = getClosestPointOnPath(sensorPoint, bcMainCoordinates.slice(9));
+                  const targetPoint = mapZoom >= 18 
+                    ? [baseProj[0] + 0.000025, baseProj[1] - 0.000025] as [number, number]
+                    : baseProj;
+                  return (
+                    <Polyline 
+                      key={`foA-${idx}`}
+                      positions={[sensorPoint, targetPoint]}
+                      pathOptions={{ color: '#43b581', weight: 3 }}
+                    >
+                      <Tooltip sticky>Tunnel connected to FO A</Tooltip>
+                    </Polyline>
+                  );
+                })}
+
+                {/* BC MAIN 02 (Control Room to Northeast) */}
                 <Polyline 
-                  positions={[
-                    [-0.3076283024687055, 115.85749409146369], // SW
-                    [-0.29970261465644, 115.86817796519595]  // NE
-                  ]} 
-                  pathOptions={{ color: '#43b581', weight: 4 }}
+                  positions={bcMain02Coordinates} 
+                  pathOptions={{ color: '#43b581', weight: 5 }}
                 >
-                  <Tooltip sticky>FO Line - Conveyor Main</Tooltip>
+                  <Tooltip sticky>BC MAIN 02 - FO CABLE</Tooltip>
                 </Polyline>
 
-                {/* DUMMY ALARM SEGMENT (Pulsing Red) */}
-                <Polyline 
-                  positions={[
-                    [-0.304457, 115.861767],
-                    [-0.303665, 115.862835]
-                  ]} 
-                  pathOptions={{ color: '#f04747', weight: 6, className: 'animate-pulse' }}
-                >
-                  <Tooltip sticky>Overheat Detected: 84.2°C</Tooltip>
-                </Polyline>
 
               </MapContainer>
             </div>
@@ -477,7 +665,7 @@ export default function Dashboard() {
         </div>
 
         {/* GLOBAL LEGEND (Bottom Left) */}
-        <div className="absolute bottom-4 left-4 z-30 w-96 bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-3 pointer-events-auto transition-all duration-300 flex flex-col space-y-2">
+        <div className={`absolute bottom-4 left-4 z-30 ${isFullscreen ? 'w-72' : 'w-96'} bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-3 pointer-events-auto transition-all duration-500 flex flex-col space-y-2`}>
           <div className="text-[10px] font-bold text-text-secondary uppercase tracking-widest border-b border-border pb-1">
             FIBER LINE STATUS
           </div>
@@ -498,14 +686,14 @@ export default function Dashboard() {
         </div>
 
         {/* BOTTOM RIGHT FLOATING CONTAINER */}
-        <div className="absolute bottom-4 right-4 z-30 flex flex-col space-y-4 w-96 pointer-events-none">
+        <div className={`absolute bottom-4 right-4 z-30 flex flex-col space-y-4 ${isFullscreen ? 'w-72' : 'w-96'} pointer-events-none transition-all duration-500`}>
           
           {/* SYSTEM LOGS */}
-          <div className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto flex flex-col">
+          <div className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto flex flex-col transition-all duration-500">
             <div className="text-sm font-bold text-text-primary uppercase tracking-widest flex items-center border-b border-border pb-2 mb-3 shrink-0">
               <History size={16} className="mr-2 text-scada-primary" /> SYSTEM LOGS
             </div>
-            <div className="flex flex-col space-y-2 overflow-y-auto custom-scrollbar max-h-[200px] pr-1">
+            <div className={`flex flex-col space-y-2 overflow-y-auto custom-scrollbar pr-1 transition-all duration-500 ${isFullscreen ? 'max-h-[120px]' : 'max-h-[200px]'}`}>
               {dummyLogs.map(log => (
                 <div key={log.id} className="flex flex-col bg-bg-surface p-2.5 rounded-lg border border-border shadow-sm shrink-0">
                   <div className="flex justify-between items-center mb-1.5">
@@ -545,17 +733,17 @@ export default function Dashboard() {
         </div>
 
         {/* FLOATING LEFT PANEL - AREA LIST */}
-        {!isFullscreen && (
-          <aside className="absolute top-4 left-4 bottom-[90px] w-96 flex flex-col z-20 pointer-events-none space-y-4">
+        <aside className={`absolute top-4 left-4 ${isFullscreen ? 'w-72 bottom-auto' : 'w-96 bottom-[90px]'} flex flex-col z-20 pointer-events-none space-y-4 transition-all duration-500`}>
+          
+          {/* 1. AREA MONITORING & GRID (Responsive length) */}
+          <div className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto flex flex-col shrink-0">
+            <div className="text-sm font-bold text-text-primary uppercase tracking-widest flex items-center mb-3">
+              <MapPin size={16} className="mr-2 text-scada-primary" />
+              AREA MONITORING
+            </div>
             
-            {/* 1. AREA MONITORING & GRID (4 items) */}
-            <div className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto flex flex-col shrink-0">
-              <div className="text-sm font-bold text-text-primary uppercase tracking-widest flex items-center mb-3">
-                <MapPin size={16} className="mr-2 text-scada-primary" />
-                AREA MONITORING
-              </div>
-              
-              {/* SEARCH / FILTER INPUT */}
+            {/* SEARCH / FILTER INPUT (Hidden in Fullscreen) */}
+            {!isFullscreen && (
               <div className="relative mb-3">
                 <Search size={14} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary" />
                 <input 
@@ -566,115 +754,120 @@ export default function Dashboard() {
                   className="w-full bg-bg-surface border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder-gray-500 focus:outline-none focus:border-scada-primary transition-colors"
                 />
               </div>
+            )}
 
-              <div className="grid grid-cols-2 gap-2">
-                {Array.from({ length: 4 }).map((_, idx) => {
-                  const area = currentAreas[idx];
-                  if (!area) {
-                    return (
-                      <div key={`empty-${idx}`} className="p-3 rounded-xl flex flex-col border border-transparent opacity-0 pointer-events-none">
-                        <div className="flex justify-between items-start mb-2"><span className="font-bold text-base">&nbsp;</span></div>
-                        <div className="flex justify-between items-end mt-auto pt-2"><span className="text-sm font-semibold">&nbsp;</span><span className="text-base font-mono font-bold">&nbsp;</span></div>
-                      </div>
-                    );
-                  }
+            <div className={`grid ${isFullscreen ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
+              {Array.from({ length: isFullscreen ? 2 : 4 }).map((_, idx) => {
+                const area = currentAreas[idx];
+                if (!area) {
                   return (
-                    <div 
-                      key={area.id} 
-                      onClick={() => setSelectedSegment(area)}
-                      className={`p-3 rounded-xl flex flex-col cursor-pointer transition-all hover:-translate-y-1 shadow-lg backdrop-blur-md border
-                        ${area.isAlarm 
-                          ? 'bg-bg-alarm/95 border-red-500 shadow-[0_0_15px_rgba(240,71,71,0.3)]' 
-                          : 'bg-bg-panel/95 border-border hover:bg-bg-surface'}`}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <span className={`font-bold text-base drop-shadow-md ${area.isAlarm ? 'text-red-400' : 'text-text-primary'}`}>
-                          {area.name}
-                        </span>
-                        {area.isAlarm && <AlertTriangle size={14} className="text-scada-alert animate-pulse" />}
-                      </div>
-                      <div className="flex justify-between items-end mt-auto pt-2">
-                        <span className="text-sm font-semibold text-text-primary drop-shadow-md">
-                          {area.distance}
-                        </span>
-                        <span className={`text-base font-mono font-bold drop-shadow-md ${area.isAlarm ? 'text-red-400' : 'text-scada-success'}`}>
-                          {area.temp}°C
-                        </span>
-                      </div>
+                    <div key={`empty-${idx}`} className="p-3 rounded-xl flex flex-col border border-transparent opacity-0 pointer-events-none">
+                      <div className="flex justify-between items-start mb-2"><span className="font-bold text-base">&nbsp;</span></div>
+                      <div className="flex justify-between items-end mt-auto pt-2"><span className="text-sm font-semibold">&nbsp;</span><span className="text-base font-mono font-bold">&nbsp;</span></div>
                     </div>
                   );
-                })}
+                }
+                return (
+                  <div 
+                    key={area.id} 
+                    onClick={() => setSelectedSegment(area)}
+                    className={`p-3 rounded-xl flex flex-col cursor-pointer transition-all hover:-translate-y-1 shadow-lg backdrop-blur-md border
+                      ${area.isAlarm 
+                        ? 'bg-bg-alarm/95 border-red-500 shadow-[0_0_15px_rgba(240,71,71,0.3)]' 
+                        : 'bg-bg-panel/95 border-border hover:bg-bg-surface'}`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <span className={`font-bold text-base drop-shadow-md ${area.isAlarm ? 'text-red-400' : 'text-text-primary'}`}>
+                        {area.name}
+                      </span>
+                      {area.isAlarm && <AlertTriangle size={14} className="text-scada-alert animate-pulse" />}
+                    </div>
+                    <div className="flex justify-between items-end mt-auto pt-2">
+                      <span className="text-sm font-semibold text-text-primary drop-shadow-md">
+                        {area.distance}
+                      </span>
+                      <span className={`text-base font-mono font-bold drop-shadow-md ${area.isAlarm ? 'text-red-400' : 'text-scada-success'}`}>
+                        {area.temp}°C
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* PAGINATION & VIEW ALL BUTTON */}
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+              <div className="flex items-center space-x-1.5">
+                {totalPages > 1 && Array.from({ length: totalPages }).map((_, idx) => (
+                  <button 
+                    key={idx}
+                    onClick={() => setCurrentPage(idx + 1)}
+                    className={`h-1.5 rounded-full transition-all ${currentPage === idx + 1 ? 'bg-scada-primary w-4' : 'bg-border hover:bg-text-secondary w-1.5'}`}
+                    title={`Page ${idx + 1}`}
+                  />
+                ))}
               </div>
-              
-              {/* PAGINATION & VIEW ALL BUTTON */}
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                <div className="flex items-center space-x-1.5">
-                  {totalPages > 1 && Array.from({ length: totalPages }).map((_, idx) => (
-                    <button 
-                      key={idx}
-                      onClick={() => setCurrentPage(idx + 1)}
-                      className={`h-1.5 rounded-full transition-all ${currentPage === idx + 1 ? 'bg-scada-primary w-4' : 'bg-border hover:bg-text-secondary w-1.5'}`}
-                      title={`Page ${idx + 1}`}
-                    />
-                  ))}
-                </div>
-                <button 
-                  onClick={() => setShowDataModal(true)}
-                  className="text-xs font-bold text-text-secondary hover:text-scada-primary transition-colors flex items-center uppercase tracking-wider"
-                >
-                  <List size={14} className="mr-1" /> View All
-                </button>
+              <button 
+                onClick={() => setShowDataModal(true)}
+                className="text-xs font-bold text-text-secondary hover:text-scada-primary transition-colors flex items-center uppercase tracking-wider"
+              >
+                <List size={14} className="mr-1" /> View All
+              </button>
+            </div>
+          </div>
+
+          {/* HIDE STATS & CHART IN FULLSCREEN */}
+          {!isFullscreen && (
+            <>
+              {/* 2. SYSTEM STATISTICS */}
+              <div className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto shrink-0 flex flex-col">
+                 <div className="text-sm font-bold text-text-primary uppercase tracking-widest flex items-center border-b border-border pb-2 mb-3">
+                   <Activity size={16} className="mr-2 text-scada-primary" /> SEGMENT STATS
+                 </div>
+                 <div className="grid grid-cols-4 gap-2 text-center">
+                   <div className="flex flex-col bg-bg-surface p-2 rounded border border-border">
+                     <span className="text-lg font-mono font-bold text-text-primary">{totalSegments}</span>
+                     <span className="text-[9px] text-text-secondary uppercase font-bold tracking-widest mt-1">Total</span>
+                   </div>
+                   <div className="flex flex-col bg-bg-surface p-2 rounded border border-border">
+                     <span className="text-lg font-mono font-bold text-scada-success">{normalSegments}</span>
+                     <span className="text-[9px] text-text-secondary uppercase font-bold tracking-widest mt-1">Normal</span>
+                   </div>
+                   <div className="flex flex-col bg-bg-surface p-2 rounded border border-border">
+                     <span className="text-lg font-mono font-bold text-yellow-500">{warningSegments}</span>
+                     <span className="text-[9px] text-text-secondary uppercase font-bold tracking-widest mt-1">Warn</span>
+                   </div>
+                   <div className="flex flex-col bg-bg-alarm/50 p-2 rounded border border-red-500/30">
+                     <span className="text-lg font-mono font-bold text-red-500">{dangerSegments}</span>
+                     <span className="text-[9px] text-red-400 uppercase font-bold tracking-widest mt-1">Danger</span>
+                   </div>
+                 </div>
               </div>
-            </div>
 
-            {/* 2. SYSTEM STATISTICS */}
-            <div className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto shrink-0 flex flex-col">
-               <div className="text-sm font-bold text-text-primary uppercase tracking-widest flex items-center border-b border-border pb-2 mb-3">
-                 <Activity size={16} className="mr-2 text-scada-primary" /> SEGMENT STATS
-               </div>
-               <div className="grid grid-cols-4 gap-2 text-center">
-                 <div className="flex flex-col bg-bg-surface p-2 rounded border border-border">
-                   <span className="text-lg font-mono font-bold text-text-primary">{totalSegments}</span>
-                   <span className="text-[9px] text-text-secondary uppercase font-bold tracking-widest mt-1">Total</span>
+              {/* 3. TEMPERATURE CHART */}
+              <div className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto flex-1 flex flex-col min-h-0">
+                 <div className="text-sm font-bold text-text-primary uppercase tracking-widest flex items-center border-b border-border pb-2 mb-3 shrink-0">
+                   <LineChart size={16} className="mr-2 text-scada-primary" /> TEMPERATURE TREND
                  </div>
-                 <div className="flex flex-col bg-bg-surface p-2 rounded border border-border">
-                   <span className="text-lg font-mono font-bold text-scada-success">{normalSegments}</span>
-                   <span className="text-[9px] text-text-secondary uppercase font-bold tracking-widest mt-1">Normal</span>
+                 <div className="flex-1 w-full min-h-0">
+                   <ResponsiveContainer width="100%" height="100%">
+                     <RechartsLineChart data={dummyChartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                       <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} />
+                       <XAxis dataKey="time" stroke="#9ca3af" fontSize={10} tickMargin={5} />
+                       <YAxis stroke="#9ca3af" fontSize={10} />
+                       <RechartsTooltip 
+                         contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
+                         itemStyle={{ color: '#06b6d4', fontWeight: 'bold' }}
+                         labelStyle={{ color: 'var(--text-secondary)' }}
+                       />
+                       <Line type="monotone" dataKey="temp" stroke="#06b6d4" strokeWidth={2} dot={{ r: 3, fill: '#06b6d4', strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+                     </RechartsLineChart>
+                   </ResponsiveContainer>
                  </div>
-                 <div className="flex flex-col bg-bg-surface p-2 rounded border border-border">
-                   <span className="text-lg font-mono font-bold text-yellow-500">{warningSegments}</span>
-                   <span className="text-[9px] text-text-secondary uppercase font-bold tracking-widest mt-1">Warn</span>
-                 </div>
-                 <div className="flex flex-col bg-bg-alarm/50 p-2 rounded border border-red-500/30">
-                   <span className="text-lg font-mono font-bold text-red-500">{dangerSegments}</span>
-                   <span className="text-[9px] text-red-400 uppercase font-bold tracking-widest mt-1">Danger</span>
-                 </div>
-               </div>
-            </div>
-
-            {/* 3. TEMPERATURE CHART */}
-            <div className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto flex-1 flex flex-col min-h-0">
-               <div className="text-sm font-bold text-text-primary uppercase tracking-widest flex items-center border-b border-border pb-2 mb-3 shrink-0">
-                 <LineChart size={16} className="mr-2 text-scada-primary" /> TEMPERATURE TREND
-               </div>
-               <div className="flex-1 w-full min-h-0">
-                 <ResponsiveContainer width="100%" height="100%">
-                   <RechartsLineChart data={dummyChartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                     <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} />
-                     <XAxis dataKey="time" stroke="#9ca3af" fontSize={10} tickMargin={5} />
-                     <YAxis stroke="#9ca3af" fontSize={10} />
-                     <RechartsTooltip 
-                       contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
-                       itemStyle={{ color: '#06b6d4', fontWeight: 'bold' }}
-                       labelStyle={{ color: 'var(--text-secondary)' }}
-                     />
-                     <Line type="monotone" dataKey="temp" stroke="#06b6d4" strokeWidth={2} dot={{ r: 3, fill: '#06b6d4', strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
-                   </RechartsLineChart>
-                 </ResponsiveContainer>
-               </div>
-            </div>
-          </aside>
-        )}
+              </div>
+            </>
+          )}
+        </aside>
 
         {/* FULLSCREEN DATA MODAL */}
         {showDataModal && (
@@ -684,7 +877,7 @@ export default function Dashboard() {
                 <List className="text-scada-primary mr-3" size={28} />
                 <div>
                   <h2 className="text-text-primary font-bold tracking-widest text-2xl uppercase">COMPLETE SEGMENT DATA</h2>
-                  <p className="text-text-secondary font-mono text-sm">ALL FIBER OPTIC POINTS MONITORING</p>
+                  <p className="text-text-secondary font-mono text-sm">ALL DTS SEGMENTS MONITORING</p>
                 </div>
               </div>
               
