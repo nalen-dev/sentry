@@ -37,70 +37,81 @@ export default function DiagramVisualization({ isFullscreen }: { isFullscreen: b
           <rect width="100%" height="100%" fill="url(#dotGrid)" />
 
           {/* C1 (Left Main Conveyor - 500m) */}
-          <rect x="40" y="290" width="500" height="24" className="fill-bg-surface stroke-border" strokeWidth="2" rx="4" />
-          <text x="290" y="306" className="fill-text-secondary" fontSize="12" fontWeight="bold" textAnchor="middle" letterSpacing="3">BC MAIN - 01 (500m)</text>
+          <rect x="40" y="290" width="635" height="24" className="fill-bg-surface stroke-border" strokeWidth="2" rx="4" />
+          <text x="357" y="306" className="fill-text-secondary" fontSize="12" fontWeight="bold" textAnchor="middle" letterSpacing="3">BC MAIN - 01 (500m)</text>
 
           {/* C2 (Right Main Conveyor - 800m) */}
-          <rect x="600" y="290" width="800" height="24" className="fill-bg-surface stroke-border" strokeWidth="2" rx="4" />
-          <text x="1000" y="306" className="fill-text-secondary" fontSize="12" fontWeight="bold" textAnchor="middle" letterSpacing="3">BC MAIN - 02 (800m)</text>
+          <rect x="675" y="290" width="705" height="24" className="fill-bg-surface stroke-border" strokeWidth="2" rx="4" />
+          <text x="1027" y="306" className="fill-text-secondary" fontSize="12" fontWeight="bold" textAnchor="middle" letterSpacing="3">BC MAIN - 02 (800m)</text>
 
-          {/* Top Nodes */}
+          {/* Top Nodes (TN BEK 3 - 6, Staggered) */}
           {[
-            { id: 1, x: 140 },
-            { id: 2, x: 240 },
-            { id: 3, x: 340 },
-            { id: 4, x: 440 }
-          ].map(node => (
-            <g key={`TF${node.id}`} transform={`translate(${node.x}, 170)`}>
-              <rect width="20" height="70" className="fill-bg-surface stroke-border" strokeWidth="2" rx="3" />
-              <text x="10" y="-12" className="fill-text-secondary" fontSize="11" fontWeight="bold" textAnchor="middle">TF-{node.id}</text>
+            { id: 'TN BEK 3', x: 290 },
+            { id: 'TN BEK 4', x: 390 },
+            { id: 'TN BEK 5', x: 490 },
+            { id: 'TN BEK 6', x: 590 } // Rightmost node!
+          ].map((node, i) => (
+            <g key={`TF${i}`} transform={`translate(${node.x}, 220)`}>
+              <rect width="20" height="50" className="fill-bg-surface stroke-border" strokeWidth="2" rx="3" />
+              <text x="10" y="-12" className="fill-text-secondary" fontSize="11" fontWeight="bold" textAnchor="middle">{node.id}</text>
             </g>
           ))}
 
-          {/* Bottom Nodes */}
+          {/* Bottom Nodes (TN TCM 1 - 6) */}
           {[
-            { id: 1, x: 40 },
-            { id: 2, x: 140 },
-            { id: 3, x: 240 },
-            { id: 4, x: 340 },
-            { id: 5, x: 440 },
-            { id: 6, x: 540 }
-          ].map(node => (
-            <g key={`BF${node.id}`} transform={`translate(${node.x}, 380)`}>
-              <rect width="20" height="70" className="fill-bg-surface stroke-border" strokeWidth="2" rx="3" />
-              <text x="10" y="94" className="fill-text-secondary" fontSize="11" fontWeight="bold" textAnchor="middle">BF-{node.id}</text>
+            { id: 'TN TCM 1', x: 40 },
+            { id: 'TN TCM 2', x: 140 },
+            { id: 'TN TCM 3', x: 240 },
+            { id: 'TN TCM 4', x: 340 },
+            { id: 'TN TCM 5', x: 440 },
+            { id: 'TN TCM 6', x: 540 }
+          ].map((node, i) => (
+            <g key={`BF${i}`} transform={`translate(${node.x}, 332)`}>
+              <rect width="20" height="40" className="fill-bg-surface stroke-border" strokeWidth="2" rx="3" />
+              <text x="10" y="64" className="fill-text-secondary" fontSize="11" fontWeight="bold" textAnchor="middle">{node.id}</text>
             </g>
           ))}
 
-          {/* SENSING FIBER ROUTES (Splitted logically) */}
+          {/* SENSING FIBER ROUTES */}
           
-          {/* FIBER B (TF3, TF4) */}
-          <path d="M 350,240 L 350,270 L 450,270 L 450,240" fill="none" strokeWidth="3" className={getStrokeClass("A-3")} />
-          <path d="M 450,270 L 520,270 L 520,314" fill="none" strokeWidth="3" className={getStrokeClass("A-3")} />
+          {/* FIBER B (TN BEK 3, TN BEK 4) -> FO B (Warning) */}
+          <path d="M 315,220 L 315,282" fill="none" strokeWidth="3" className={getStrokeClass("A-3")} />
+          <path d="M 415,220 L 415,282" fill="none" strokeWidth="3" className={getStrokeClass("A-3")} />
+          <path d="M 315,282 L 661,282" fill="none" strokeWidth="3" className={getStrokeClass("A-3")} />
+          <path d="M 661,282 L 661,400" fill="none" strokeWidth="3" strokeDasharray="5,5" className={getStrokeClass("A-3")} />
           
-          {/* FIBER A (TF1, TF2) */}
-          <path d="M 150,240 L 150,260 L 250,260 L 250,240" fill="none" strokeWidth="3" className={getStrokeClass("A-2")} />
-          <path d="M 250,260 L 520,260 L 520,270" fill="none" strokeWidth="3" className={getStrokeClass("A-2")} />
+          {/* FIBER A (TN BEK 5, TN BEK 6) -> FO A (Normal) */}
+          <path d="M 515,220 L 515,274" fill="none" strokeWidth="3" className={getStrokeClass("A-2")} />
+          <path d="M 615,220 L 615,274" fill="none" strokeWidth="3" className={getStrokeClass("A-2")} />
+          <path d="M 515,274 L 689,274" fill="none" strokeWidth="3" className={getStrokeClass("A-2")} />
+          <path d="M 689,274 L 689,400" fill="none" strokeWidth="3" strokeDasharray="5,5" className={getStrokeClass("A-2")} />
           
-          {/* FIBER C (Full Length Top) */}
-          <path d="M 50,290 L 540,290" fill="none" strokeWidth="3" className={getStrokeClass("A-1")} />
+          {/* FIBER C (Full Length Top - BC 01, Dashed crossing) */}
+          <path d="M 50,290 L 668,290" fill="none" strokeWidth="3" className={getStrokeClass("A-1")} />
+          <path d="M 668,290 L 668,400" fill="none" strokeWidth="3" strokeDasharray="5,5" className={getStrokeClass("A-1")} />
           
-          {/* FIBER D (Bottom Tunnels BF1-BF6) */}
-          <path d="M 50,380 L 50,340 L 150,340 L 150,380" fill="none" strokeWidth="3" className={getStrokeClass("A-4")} />
-          <path d="M 150,340 L 250,340 L 250,380" fill="none" strokeWidth="3" className={getStrokeClass("A-5")} />
-          <path d="M 250,340 L 350,340 L 350,380" fill="none" strokeWidth="3" className={getStrokeClass("A-6")} />
-          <path d="M 350,340 L 450,340 L 450,380" fill="none" strokeWidth="3" className={getStrokeClass("A-7")} />
-          <path d="M 450,340 L 550,340 L 550,380" fill="none" strokeWidth="3" className={getStrokeClass("A-8")} />
-          <path d="M 550,340 L 580,340 L 580,314" fill="none" strokeWidth="3" className={getStrokeClass("A-9")} />
+          {/* FIBER D (Bottom Tunnels TN TCM 1-6) */}
+          <path d="M 65,372 L 65,322" fill="none" strokeWidth="3" className={getStrokeClass("A-4")} />
+          <path d="M 165,372 L 165,322" fill="none" strokeWidth="3" className={getStrokeClass("A-4")} />
+          <path d="M 265,372 L 265,322" fill="none" strokeWidth="3" className={getStrokeClass("A-4")} />
+          <path d="M 365,372 L 365,322" fill="none" strokeWidth="3" className={getStrokeClass("A-4")} />
+          <path d="M 465,372 L 465,322" fill="none" strokeWidth="3" className={getStrokeClass("A-4")} />
+          <path d="M 565,372 L 565,322" fill="none" strokeWidth="3" className={getStrokeClass("A-4")} />
+          
+          <path d="M 65,322 L 675,322" fill="none" strokeWidth="3" className={getStrokeClass("A-4")} />
+          <path d="M 675,322 L 675,400" fill="none" strokeWidth="3" strokeDasharray="5,5" className={getStrokeClass("A-4")} />
 
-          {/* MAIN TRUNK ROUTE (C & D join to BC MAIN 02) */}
-          <path d="M 520,314 L 520,324 L 580,324 L 580,314" fill="none" strokeWidth="4" stroke="#6b7280" strokeDasharray="5,5" />
-          <path d="M 580,314 L 600,314 L 1400,314" fill="none" strokeWidth="3" className={getStrokeClass("A-10")} />
+          {/* MAIN TRUNK ROUTE BC MAIN 02 */}
+          <path d="M 682,314 L 1380,314" fill="none" strokeWidth="3" className={getStrokeClass("A-10")} />
+          <path d="M 682,314 L 682,400" fill="none" strokeWidth="3" strokeDasharray="5,5" className={getStrokeClass("A-10")} />
 
-          {/* SYSTEM CONTROL ROOM */}
-          <rect x="1350" y="270" width="80" height="80" className="fill-bg-panel stroke-border" strokeWidth="2" rx="4" />
-          <circle cx="1390" cy="310" r="16" className="fill-bg-surface stroke-scada-primary" strokeWidth="2" />
-          <text x="1390" y="370" className="fill-text-primary" fontSize="12" fontWeight="bold" textAnchor="middle">CONTROL ROOM</text>
+          {/* SYSTEM CONTROL ROOM (Bigger, Lowered) */}
+          <g transform="translate(635, 360)">
+            <rect x="0" y="0" width="80" height="80" className="fill-bg-panel stroke-border" strokeWidth="2" rx="6" />
+            <circle cx="40" cy="40" r="14" className="fill-bg-surface stroke-scada-primary" strokeWidth="3" />
+            <text x="40" y="100" className="fill-text-primary" fontSize="11" fontWeight="bold" textAnchor="middle">CONTROL</text>
+            <text x="40" y="114" className="fill-text-primary" fontSize="11" fontWeight="bold" textAnchor="middle">ROOM</text>
+          </g>
         </svg>
       </div>
     </div>

@@ -13,12 +13,17 @@ import LogPanel from '../features/dashboard/LogPanel';
 // Data
 import { DUMMY_AREAS, DUMMY_LOGS, DUMMY_CHART_DATA } from '../data/constants';
 
+import { getCurrentWindow } from '@tauri-apps/api/window';
+
 export default function Dashboard() {
   const [viewMode, setViewMode] = useState<'satellite' | 'diagram'>('satellite');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [mapZoom, setMapZoom] = useState(15);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved ? saved === 'dark' : true;
+  });
 
   const [userRole, setUserRole] = useState('OPERATOR');
   const [userId, setUserId] = useState('OP-7729');
@@ -39,8 +44,19 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
     document.documentElement.className = isDarkMode ? 'dark' : 'light';
   }, [isDarkMode]);
+
+  // Sync state dengan Tauri Window Fullscreen
+  useEffect(() => {
+    try {
+      const appWindow = getCurrentWindow();
+      appWindow.setFullscreen(isFullscreen).catch(() => {});
+    } catch (e) {
+      // Abaikan jika jalan di browser biasa (bukan Tauri)
+    }
+  }, [isFullscreen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -93,7 +109,6 @@ export default function Dashboard() {
       {/* TOP MENU BAR */}
       <TopNavbar 
         isFullscreen={isFullscreen}
-        setIsFullscreen={setIsFullscreen}
         isDarkMode={isDarkMode}
         setIsDarkMode={setIsDarkMode}
         userRole={userRole}

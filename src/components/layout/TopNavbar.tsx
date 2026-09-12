@@ -1,33 +1,43 @@
 import { Sun, Moon, Layout, History, LineChart, Settings, User, LogOut } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface TopNavbarProps {
   isFullscreen: boolean;
-  setIsFullscreen: (val: boolean) => void;
   isDarkMode: boolean;
   setIsDarkMode: (val: boolean) => void;
-  userRole: string;
   userId: string;
+  userRole: string;
 }
 
 export default function TopNavbar({ 
-  isFullscreen,
+  isFullscreen, 
   isDarkMode, 
-  setIsDarkMode, 
-  userRole, 
-  userId 
+  setIsDarkMode,
+  userId,
+  userRole
 }: TopNavbarProps) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userRole');
     localStorage.removeItem('userId');
+    localStorage.removeItem('userRole');
     navigate('/login');
   };
 
+  const getTabClass = (path: string) => {
+    const isActive = location.pathname === path;
+    const baseClass = "font-bold transition-colors flex items-center tracking-widest";
+    
+    if (isFullscreen) {
+      return `${baseClass} p-2 rounded-lg ${isActive ? 'bg-scada-primary/10 text-scada-primary' : 'text-text-secondary hover:bg-bg-surface hover:text-text-primary'}`;
+    }
+    
+    return `${baseClass} text-sm ${isActive ? 'text-scada-primary' : 'text-text-secondary hover:text-text-primary'}`;
+  };
+
   return (
-    <header className={`z-30 transition-all duration-500 flex items-center shadow-md border-border ${
+    <header className={`z-40 flex items-center transition-all duration-300 ${
       isFullscreen 
         ? 'absolute top-4 left-1/2 transform -translate-x-1/2 h-14 bg-bg-panel/90 backdrop-blur-md border rounded-2xl px-4 space-x-4' 
         : 'h-16 bg-bg-panel border-b px-6 shrink-0 justify-between w-full'
@@ -52,16 +62,16 @@ export default function TopNavbar({
       <div className={`flex items-center ${isFullscreen ? 'space-x-2' : 'space-x-6'}`}>
         
         <nav className={`flex items-center ${isFullscreen ? 'space-x-2' : 'space-x-6 mr-4'}`}>
-          <button className={`text-scada-primary font-bold transition-colors flex items-center tracking-widest ${isFullscreen ? 'p-2 rounded-lg bg-scada-primary/10' : 'text-sm'}`} title="Dashboard">
+          <button onClick={() => navigate('/')} className={getTabClass('/')} title="Dashboard">
             <Layout size={16} className={!isFullscreen ? "mr-2" : ""} /> {!isFullscreen && "DASHBOARD"}
           </button>
-          <button className={`text-text-secondary hover:text-text-primary font-bold transition-colors flex items-center tracking-widest ${isFullscreen ? 'p-2 rounded-lg hover:bg-bg-surface' : 'text-sm'}`} title="Logs">
-            <History size={16} className={!isFullscreen ? "mr-2" : ""} /> {!isFullscreen && "LOGS"}
-          </button>
-          <button className={`text-text-secondary hover:text-text-primary font-bold transition-colors flex items-center tracking-widest ${isFullscreen ? 'p-2 rounded-lg hover:bg-bg-surface' : 'text-sm'}`} title="Chart">
+          <button onClick={() => navigate('/chart')} className={getTabClass('/chart')} title="Chart">
             <LineChart size={16} className={!isFullscreen ? "mr-2" : ""} /> {!isFullscreen && "CHART"}
           </button>
-          <button className={`text-text-secondary hover:text-text-primary font-bold transition-colors flex items-center tracking-widest ${isFullscreen ? 'p-2 rounded-lg hover:bg-bg-surface' : 'text-sm'}`} title="Setting">
+          <button onClick={() => navigate('/logs')} className={getTabClass('/logs')} title="Logs">
+            <History size={16} className={!isFullscreen ? "mr-2" : ""} /> {!isFullscreen && "LOGS"}
+          </button>
+          <button onClick={() => navigate('/setting')} className={getTabClass('/setting')} title="Setting">
             <Settings size={16} className={!isFullscreen ? "mr-2" : ""} /> {!isFullscreen && "SETTING"}
           </button>
         </nav>

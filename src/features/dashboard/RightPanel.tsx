@@ -1,5 +1,6 @@
 import { Activity, LineChart as LineChartIcon } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 
 interface RightPanelProps {
   totalSegments: number;
@@ -16,6 +17,8 @@ export default function RightPanel({
   dangerSegments,
   dummyChartData
 }: RightPanelProps) {
+  const navigate = useNavigate();
+
   return (
     <>
       {/* SYSTEM STATISTICS */}
@@ -44,9 +47,15 @@ export default function RightPanel({
       </div>
 
       {/* TEMPERATURE CHART */}
-      <div className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto flex-1 flex flex-col min-h-0 mt-4">
-        <div className="text-sm font-bold text-text-primary uppercase tracking-widest flex items-center border-b border-border pb-2 mb-3 shrink-0">
-          <LineChartIcon size={16} className="mr-2 text-scada-primary" /> TEMPERATURE TREND
+      <div 
+        onClick={() => navigate('/chart')}
+        className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto flex-1 flex flex-col min-h-0 mt-4 cursor-pointer hover:border-scada-primary/50 transition-colors group"
+      >
+        <div className="text-sm font-bold text-text-primary uppercase tracking-widest flex items-center justify-between border-b border-border pb-2 mb-3 shrink-0">
+          <div className="flex items-center">
+            <LineChartIcon size={16} className="mr-2 text-scada-primary group-hover:scale-110 transition-transform" /> TEMPERATURE TREND
+          </div>
+          <span className="text-[10px] text-scada-primary opacity-0 group-hover:opacity-100 transition-opacity font-mono">CLICK TO EXPAND</span>
         </div>
         <div className="flex-1 w-full min-h-0">
           <ResponsiveContainer width="100%" height="100%">

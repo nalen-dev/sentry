@@ -14,7 +14,10 @@
       {
         "title": "SENTRY",
         "width": 1280,
-        "height": 720
+        "height": 720,
+        "maximized": true,
+        "minWidth": 800,
+        "minHeight": 600
       }
     ],
     "security": {

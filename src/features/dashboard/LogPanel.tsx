@@ -1,4 +1,5 @@
-import { History, Wifi, Clock } from 'lucide-react';
+import { History, Wifi, Clock, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export interface LogData {
   id: number;
@@ -14,12 +15,20 @@ interface LogPanelProps {
 }
 
 export default function LogPanel({ isFullscreen, dummyLogs, currentTime }: LogPanelProps) {
+  const navigate = useNavigate();
+
   return (
     <div className={`absolute bottom-4 right-4 z-30 flex flex-col space-y-4 ${isFullscreen ? 'w-72' : 'w-96'} pointer-events-none transition-all duration-500`}>
       {/* SYSTEM LOGS */}
-      <div className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto flex flex-col transition-all duration-500">
-        <div className="text-sm font-bold text-text-primary uppercase tracking-widest flex items-center border-b border-border pb-2 mb-3 shrink-0">
-          <History size={16} className="mr-2 text-scada-primary" /> SYSTEM LOGS
+      <div 
+        onClick={() => navigate('/logs')}
+        className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto flex flex-col transition-all duration-500 cursor-pointer hover:border-scada-primary/50 group"
+      >
+        <div className="text-sm font-bold text-text-primary uppercase tracking-widest flex items-center justify-between border-b border-border pb-2 mb-3 shrink-0">
+          <div className="flex items-center">
+            <History size={16} className="mr-2 text-scada-primary group-hover:scale-110 transition-transform" /> SYSTEM LOGS
+          </div>
+          <ArrowRight size={14} className="text-scada-primary opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
         <div className={`flex flex-col space-y-2 overflow-y-auto custom-scrollbar pr-1 transition-all duration-500 ${isFullscreen ? 'max-h-[120px]' : 'max-h-[200px]'}`}>
           {dummyLogs.map(log => (

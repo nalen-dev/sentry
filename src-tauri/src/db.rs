@@ -1,0 +1,72 @@
+use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
+use std::fs;
+use std::path::PathBuf;
+
+pub async fn init_db(app_dir: &PathBuf) -> Result<SqlitePool, sqlx::Error> {
+    // Ensure the application directory exists
+    if !app_dir.exists() {
+        fs::create_dir_all(app_dir).expect("Failed to create app data directory");
+    }
+
+    let db_path = app_dir.join("sentry_scada.db");
+    let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
+
+    let pool = SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect(&db_url)
+        .await?;
+
+    // Create tables if they don't exist
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            role TEXT NOT NULL,
+            status TEXT NOT NULL
+        );"
+    )
+    .execute(&pool)
+    .await?;
+
+    // Insert default admin if not exists
+    sqlx::query(
+        "INSERT OR IGNORE INTO users (id, role, status) VALUES ('ADMIN-01', 'ADMINISTRATOR', 'Active');"
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );"
+    )
+    .execute(&pool)
+    .await?;
+
+    // Insert default thresholds
+    sqlx::query(
+        "INSERT OR IGNORE INTO settings (key, value) VALUES ('warning_threshold', '60.0');"
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        "INSERT OR IGNORE INTO settings (key, value) VALUES ('critical_threshold', '70.0');"
+    )
+    .execute(&pool)
+    .await?;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS alarm_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            segment TEXT NOT NULL,
+            message TEXT NOT NULL,
+            type TEXT NOT NULL
+        );"
+    )
+    .execute(&pool)
+    .await?;
+
+    Ok(pool)
+}
