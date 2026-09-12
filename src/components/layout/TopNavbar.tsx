@@ -1,5 +1,6 @@
-import { Sun, Moon, Layout, History, LineChart, Settings, User, LogOut } from 'lucide-react';
+import { Sun, Moon, Layout, History, LineChart, Settings, User, LogOut, Maximize, Minimize } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
 interface TopNavbarProps {
   isFullscreen: boolean;
@@ -18,6 +19,33 @@ export default function TopNavbar({
 }: TopNavbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isTrueFullscreen, setIsTrueFullscreen] = useState(false);
+
+  useEffect(() => {
+    // Check initial fullscreen state if running in Tauri
+    if ('__TAURI_INTERNALS__' in window) {
+      import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+        getCurrentWindow().isFullscreen().then(setIsTrueFullscreen);
+      });
+    }
+  }, []);
+
+  const toggleOSFullscreen = async () => {
+    if ('__TAURI_INTERNALS__' in window) {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const appWindow = getCurrentWindow();
+      const current = await appWindow.isFullscreen();
+      await appWindow.setFullscreen(!current);
+      setIsTrueFullscreen(!current);
+    } else {
+      // Browser fallback
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().then(() => setIsTrueFullscreen(true));
+      } else {
+        document.exitFullscreen().then(() => setIsTrueFullscreen(false));
+      }
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('userId');
@@ -75,6 +103,14 @@ export default function TopNavbar({
             <Settings size={16} className={!isFullscreen ? "mr-2" : ""} /> {!isFullscreen && "SETTING"}
           </button>
         </nav>
+
+        <button 
+          onClick={toggleOSFullscreen}
+          className={`text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center ${isFullscreen ? 'p-2 rounded-lg hover:bg-bg-surface' : 'p-2 bg-bg-surface border border-border rounded-lg'}`}
+          title="Toggle Fullscreen"
+        >
+          {isTrueFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+        </button>
 
         <button 
           onClick={() => setIsDarkMode(!isDarkMode)}

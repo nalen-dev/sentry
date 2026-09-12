@@ -32,7 +32,6 @@ export default function SettingPage() {
 
   // Backend States
   const [users, setUsers] = useState<UserData[]>([]);
-  const [settingsMap, setSettingsMap] = useState<Record<string, string>>({});
   
   // Local form states
   const [warningThreshold, setWarningThreshold] = useState("60.0");
@@ -63,7 +62,6 @@ export default function SettingPage() {
     try {
       // 1. Fetch settings
       const settings: Record<string, string> = await invoke('get_all_settings');
-      setSettingsMap(settings);
       
       // Sync local form states
       if (settings['warning_threshold']) setWarningThreshold(settings['warning_threshold']);

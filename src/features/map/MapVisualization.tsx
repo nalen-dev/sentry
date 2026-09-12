@@ -1,7 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, Tooltip, useMap, useMapEvents, CircleMarker } from 'react-leaflet';
-import { BC_MAIN_COORDINATES, BC_MAIN_02_COORDINATES, TUNNEL_SENSORS } from '../../data/constants';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { WifiOff } from 'lucide-react';
+import { BC_MAIN_COORDINATES, BC_MAIN_02_COORDINATES, TUNNEL_SENSORS } from '../../data/constants';
 
 function MapController({ isFullscreen }: { isFullscreen: boolean }) {
   const map = useMap();
@@ -87,8 +89,33 @@ interface MapVisualizationProps {
 }
 
 export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom }: MapVisualizationProps) {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   return (
     <div className="w-full h-full relative z-0">
+      {!isOnline && (
+        <div className="absolute inset-0 z-[1000] bg-bg-base/80 backdrop-blur-sm flex flex-col items-center justify-center text-text-primary">
+          <WifiOff size={48} className="text-scada-error mb-4 opacity-80 animate-pulse" />
+          <h2 className="text-xl font-bold tracking-widest text-scada-error mb-2">SATELLITE MAP UNAVAILABLE</h2>
+          <p className="text-sm text-text-secondary font-mono bg-bg-panel/50 px-4 py-2 rounded-lg border border-border">
+            Please connect to the internet to view the satellite background.
+          </p>
+        </div>
+      )}
+
       <MapContainer 
         bounds={[
           [-0.308000, 115.857000],
