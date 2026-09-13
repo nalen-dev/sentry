@@ -1,0 +1,14 @@
+--- src/pages/SettingPage.tsx
++++ src/pages/SettingPage.tsx
+@@ -10,7 +10,8 @@
+ } from 'lucide-react';
+ import TopNavbar from '../components/layout/TopNavbar';
+ import MappingGrid, { SegmentMapping } from '../components/MappingGrid';
+-import { invoke } from '@tauri-apps/api/core';
+-import { useToast } from '../contexts/ToastContext';
+-//import { invoke } from '@tauri-apps/api/core';
++
++import { invoke } from '@tauri-apps/api/core';
++import { useToast } from '../contexts/ToastContext';
+ 
+ type SettingTab = 'time' | 'mapping' | 'users' | 'database' | 'threshold' | 'advanced';

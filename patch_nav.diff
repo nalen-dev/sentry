@@ -1,0 +1,29 @@
+--- src/components/layout/TopNavbar.tsx
++++ src/components/layout/TopNavbar.tsx
+@@ -26,20 +26,17 @@
+   }, []);
+   
+   const toggleOSFullscreen = async () => {
+-    if ('__TAURI_INTERNALS__' in window || '__TAURI__' in window) {
+-      try {
+-        const newState = await invoke<boolean>('toggle_fullscreen');
+-        setIsTrueFullscreen(newState);
+-      } catch (err) {
+-        console.error("Failed to toggle fullscreen:", err);
+-      }
+-    } else {
+-      // Browser fallback
++    try {
++      // Try Tauri backend first
++      const newState = await invoke<boolean>('toggle_fullscreen');
++      setIsTrueFullscreen(newState);
++    } catch (err) {
++      // Browser fallback if invoke fails (meaning we're not in Tauri or backend error)
+       if (!document.fullscreenElement) {
+         document.documentElement.requestFullscreen().then(() => setIsTrueFullscreen(true));
+       } else {
+         document.exitFullscreen().then(() => setIsTrueFullscreen(false));
+       }
+     }
+   };
+ 

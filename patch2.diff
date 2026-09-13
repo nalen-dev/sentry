@@ -1,0 +1,13 @@
+--- src/pages/Dashboard.tsx
++++ src/pages/Dashboard.tsx
+@@ -107,13 +107,13 @@
+   const baseAreas: (SegmentData & { mainGroup: string; subGroup: string | null })[] = mappings.length > 0 
+     ? mappings.map(m => ({
+         id: `m-${m.id}`,
+         name: m.custom_name || m.original_name,
+-        distance: `CH${m.dts_ch}-C${m.dts_code}`,
++        distance: m.start_m != null && m.end_m != null ? `${m.start_m}m - ${m.end_m}m` : `CH${m.dts_ch}-C${m.dts_code}`,
+         temp: String(35 + Math.floor(Math.random() * 5)), // string temp
+         isAlarm: false,
+         mainGroup: m.main_group,
+         subGroup: m.sub_group,

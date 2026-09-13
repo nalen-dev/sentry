@@ -26,17 +26,19 @@ export default function TopNavbar({
   // Note: We cannot easily check initial fullscreen without invoke, so we'll just assume false initially.
   
   const toggleOSFullscreen = async () => {
-    try {
-      // Try Tauri backend first
-      const newState = await invoke<boolean>('toggle_fullscreen');
-      setIsTrueFullscreen(newState);
-    } catch (err) {
-      console.warn("Tauri fullscreen failed or not available, falling back to browser API", err);
+    if ('__TAURI_INTERNALS__' in window) {
+      try {
+        const newState = await invoke<boolean>('toggle_fullscreen');
+        setIsTrueFullscreen(newState);
+      } catch (err) {
+        console.error("Failed to toggle fullscreen:", err);
+      }
+    } else {
       // Browser fallback
       if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().then(() => setIsTrueFullscreen(true)).catch(e => console.error(e));
+        document.documentElement.requestFullscreen().then(() => setIsTrueFullscreen(true));
       } else {
-        document.exitFullscreen().then(() => setIsTrueFullscreen(false)).catch(e => console.error(e));
+        document.exitFullscreen().then(() => setIsTrueFullscreen(false));
       }
     }
   };

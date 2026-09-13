@@ -1,0 +1,17 @@
+--- src/pages/Dashboard.tsx
++++ src/pages/Dashboard.tsx
+@@ -1,13 +1,11 @@
+ import { useState, useEffect } from 'react';
+ import { List, X, Grid, AlertTriangle, Map as MapIcon, Layout, Maximize2, Minimize2 } from 'lucide-react';
++import { Search } from 'lucide-react';
+ import SegmentDetailModal, { SegmentData } from '../components/SegmentDetailModal';
+ 
+ // Components
+-import { Search, List, Grid, X, AlertTriangle } from 'lucide-react';
+-
+ import MapVisualization from '../features/map/MapVisualization';
+ import DiagramVisualization from '../features/map/DiagramVisualization';
+ import TopNavbar from '../components/layout/TopNavbar';
+-import SegmentDetailModal, { SegmentData } from '../components/SegmentDetailModal';
+ import LogPanel from '../features/dashboard/LogPanel';
+ import LeftPanel from '../features/dashboard/LeftPanel';

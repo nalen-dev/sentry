@@ -1,0 +1,10 @@
+--- src/pages/Dashboard.tsx
++++ src/pages/Dashboard.tsx
+@@ -10,6 +10,7 @@
+ import LogPanel from '../features/dashboard/LogPanel';
+ import LeftPanel from '../features/dashboard/LeftPanel';
+ import RightPanel from '../features/dashboard/RightPanel';
++import DataModal from '../features/dashboard/DataModal';
+ import { DUMMY_AREAS, DUMMY_LOGS, DUMMY_CHART_DATA } from '../data/constants';
+ 
+ import { getCurrentWindow } from '@tauri-apps/api/window';

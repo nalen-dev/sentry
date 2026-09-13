@@ -68,5 +68,26 @@ pub async fn init_db(app_dir: &PathBuf) -> Result<SqlitePool, sqlx::Error> {
     .execute(&pool)
     .await?;
 
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS segment_mappings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            dts_ch INTEGER NOT NULL,
+            dts_code INTEGER NOT NULL,
+            original_name TEXT NOT NULL,
+            custom_name TEXT,
+            main_group TEXT NOT NULL,
+            sub_group TEXT,
+            start_m INTEGER,
+            end_m INTEGER,
+            UNIQUE(dts_ch, dts_code)
+        );"
+    )
+    .execute(&pool)
+    .await?;
+
+    // Try to add start_m and end_m if they don't exist
+    let _ = sqlx::query("ALTER TABLE segment_mappings ADD COLUMN start_m INTEGER").execute(&pool).await;
+    let _ = sqlx::query("ALTER TABLE segment_mappings ADD COLUMN end_m INTEGER").execute(&pool).await;
+
     Ok(pool)
 }

@@ -1,0 +1,28 @@
+--- src/pages/Dashboard.tsx
++++ src/pages/Dashboard.tsx
+@@ -1,5 +1,5 @@
+ import { useState, useEffect } from 'react';
+-import { List, X, Grid, AlertTriangle, Map as MapIcon, Layout, Maximize2, Minimize2 } from 'lucide-react';
++import { Map as MapIcon, Layout, Maximize2, Minimize2 } from 'lucide-react';
+ import SegmentDetailModal, { SegmentData } from '../components/SegmentDetailModal';
+ 
+ // Components
+@@ -18,6 +18,8 @@
+   custom_name: string | null;
+   main_group: string;
+   sub_group: string | null;
++  start_m?: number | null;
++  end_m?: number | null;
+ }
+ 
+ export default function Dashboard() {
+@@ -48,9 +50,6 @@
+   const itemsPerPage = 8;
+   const [selectedSegment, setSelectedSegment] = useState<SegmentData | null>(null);
+   
+-  const [showDataModal, setShowDataModal] = useState(false);
+-  const [modalViewMode, setModalViewMode] = useState<'grid' | 'table'>('grid');
+-
++  const [showDataModal, setShowDataModal] = useState(false);
++
+   useEffect(() => {

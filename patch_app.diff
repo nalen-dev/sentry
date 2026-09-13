@@ -1,0 +1,72 @@
+--- src/App.tsx
++++ src/App.tsx
+@@ -5,6 +5,7 @@
+ import ChartPage from './pages/ChartPage';
+ import LogsPage from './pages/LogsPage';
+ import SettingPage from './pages/SettingPage';
++import { ToastProvider } from './contexts/ToastContext';
+ 
+ function ProtectedRoute({ children }: { children: React.ReactNode }) {
+   const isAuthenticated = localStorage.getItem('userRole') !== null;
+@@ -17,25 +18,27 @@
+ 
+ function App() {
+   return (
+-    <Router>
+-      <Routes>
+-        <Route path="/login" element={<Login />} />
+-        <Route path="/" element={
+-          <ProtectedRoute>
+-            <Dashboard />
+-          </ProtectedRoute>
+-        } />
+-        <Route path="/chart" element={
+-          <ProtectedRoute>
+-            <ChartPage />
+-          </ProtectedRoute>
+-        } />
+-        <Route path="/logs" element={
+-          <ProtectedRoute>
+-            <LogsPage />
+-          </ProtectedRoute>
+-        } />
+-        <Route path="/setting" element={
+-          <ProtectedRoute>
+-            <SettingPage />
+-          </ProtectedRoute>
+-        } />
+-        {/* Redirect any unknown routes to dashboard */}
+-        <Route path="*" element={<Navigate to="/" replace />} />
+-      </Routes>
+-    </Router>
++    <ToastProvider>
++      <Router>
++        <Routes>
++          <Route path="/login" element={<Login />} />
++          <Route path="/" element={
++            <ProtectedRoute>
++              <Dashboard />
++            </ProtectedRoute>
++          } />
++          <Route path="/chart" element={
++            <ProtectedRoute>
++              <ChartPage />
++            </ProtectedRoute>
++          } />
++          <Route path="/logs" element={
++            <ProtectedRoute>
++              <LogsPage />
++            </ProtectedRoute>
++          } />
++          <Route path="/setting" element={
++            <ProtectedRoute>
++              <SettingPage />
++            </ProtectedRoute>
++          } />
++          {/* Redirect any unknown routes to dashboard */}
++          <Route path="*" element={<Navigate to="/" replace />} />
++        </Routes>
++      </Router>
++    </ToastProvider>
+   );
+ }

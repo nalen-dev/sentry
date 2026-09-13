@@ -1,4 +1,4 @@
-import { Search, MapPin, AlertTriangle, List } from 'lucide-react';
+import { Search, MapPin, AlertTriangle, List, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SegmentData } from '../../components/SegmentDetailModal';
 
 interface LeftPanelProps {
@@ -11,6 +11,14 @@ interface LeftPanelProps {
   totalPages: number;
   currentPage: number;
   setShowDataModal: (show: boolean) => void;
+  
+  // Grouping Props
+  mainGroups: string[];
+  activeMainGroup: string;
+  setActiveMainGroup: (g: string) => void;
+  subGroups: string[];
+  activeSubGroup: string;
+  setActiveSubGroup: (g: string) => void;
 }
 
 export default function LeftPanel({
@@ -22,7 +30,13 @@ export default function LeftPanel({
   setSelectedSegment,
   totalPages,
   currentPage,
-  setShowDataModal
+  setShowDataModal,
+  mainGroups,
+  activeMainGroup,
+  setActiveMainGroup,
+  subGroups,
+  activeSubGroup,
+  setActiveSubGroup
 }: LeftPanelProps) {
   return (
     <div className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto flex flex-col shrink-0">
@@ -32,15 +46,38 @@ export default function LeftPanel({
       </div>
       
       {!isFullscreen && (
-        <div className="relative mb-3">
-          <Search size={14} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary" />
-          <input 
-            type="text" 
-            placeholder="Search area..." 
-            value={searchTerm}
-            onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            className="w-full bg-bg-surface border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder-gray-500 focus:outline-none focus:border-scada-primary transition-colors"
-          />
+        <div className="flex flex-col space-y-2 mb-3">
+          <div className="flex space-x-2">
+            <select 
+              value={activeMainGroup} 
+              onChange={e => { setActiveMainGroup(e.target.value); setActiveSubGroup('All'); setCurrentPage(1); }}
+              className="w-1/2 bg-bg-surface border border-border rounded-lg p-2 text-xs text-text-primary focus:outline-none focus:border-scada-primary cursor-pointer font-bold"
+            >
+              <option value="All">All Areas</option>
+              {mainGroups.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+            
+            <select 
+              value={activeSubGroup} 
+              onChange={e => { setActiveSubGroup(e.target.value); setCurrentPage(1); }}
+              disabled={activeMainGroup === 'All' || subGroups.length === 0}
+              className="w-1/2 bg-bg-surface border border-border rounded-lg p-2 text-xs text-text-primary focus:outline-none focus:border-scada-primary cursor-pointer font-bold disabled:opacity-50"
+            >
+              <option value="All">All Subgroups</option>
+              {subGroups.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
+
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary" />
+            <input 
+              type="text" 
+              placeholder="Search segment..." 
+              value={searchTerm}
+              onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              className="w-full bg-bg-surface border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder-gray-500 focus:outline-none focus:border-scada-primary transition-colors"
+            />
+          </div>
         </div>
       )}
 
@@ -84,15 +121,24 @@ export default function LeftPanel({
       </div>
       
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-        <div className="flex items-center space-x-1.5">
-          {totalPages > 1 && Array.from({ length: totalPages }).map((_, idx) => (
-            <button 
-              key={idx}
-              onClick={() => setCurrentPage(idx + 1)}
-              className={`h-1.5 rounded-full transition-all ${currentPage === idx + 1 ? 'bg-scada-primary w-4' : 'bg-border hover:bg-text-secondary w-1.5'}`}
-              title={`Page ${idx + 1}`}
-            />
-          ))}
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="p-1 rounded bg-bg-surface text-text-secondary hover:text-scada-primary disabled:opacity-30 disabled:hover:text-text-secondary transition-colors"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="text-xs font-mono font-bold text-text-secondary">
+            {currentPage} / {Math.max(1, totalPages)}
+          </span>
+          <button 
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage >= totalPages}
+            className="p-1 rounded bg-bg-surface text-text-secondary hover:text-scada-primary disabled:opacity-30 disabled:hover:text-text-secondary transition-colors"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
         <button 
           onClick={() => setShowDataModal(true)}

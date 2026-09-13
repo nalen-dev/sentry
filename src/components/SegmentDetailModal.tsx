@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Image as ImageIcon, Camera, Save, Activity, MapPin, AlignLeft, Info, Thermometer } from 'lucide-react';
+import { X, Image as ImageIcon, Camera, Save, Activity, MapPin, AlignLeft, Info, Thermometer, AlertTriangle } from 'lucide-react';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 
 export interface SegmentData {
@@ -12,17 +12,25 @@ export interface SegmentData {
   areaLocation?: string;
   notes?: string;
   photoUrl?: string;
+  // new mapping fields
+  mappingId?: number;
+  original_name?: string;
 }
 
-interface Props {
+interface SegmentDetailModalProps {
   segment: SegmentData;
   onClose: () => void;
-  userRole: string;
+  userRole?: string;
+  onRename?: (id: number, newName: string) => void;
 }
 
-export default function SegmentDetailModal({ segment, onClose, userRole }: Props) {
+type Props = SegmentDetailModalProps;
+
+export default function SegmentDetailModal({ segment, onClose, userRole, onRename }: Props) {
   const isAdmin = userRole === 'ADMINISTRATOR';
   const [notes, setNotes] = useState(segment.notes || '');
+  const [name, setName] = useState(segment.name);
+  const [isEditingName, setIsEditingName] = useState(false);
 
   // Dummy Chart Data for the modal
   const dummyChartData = [
@@ -46,12 +54,44 @@ export default function SegmentDetailModal({ segment, onClose, userRole }: Props
       <div className="w-full max-w-6xl h-[85vh] bg-bg-panel border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         
         {/* HEADER */}
-        <div className="flex items-center justify-between p-5 border-b border-border bg-bg-surface shrink-0">
-          <div className="flex items-center space-x-4">
-            <div className={`w-3 h-10 rounded-full ${segment.isAlarm ? 'bg-red-500 animate-pulse' : 'bg-scada-success'}`}></div>
+        <div className="flex justify-between items-start p-6 border-b border-border bg-bg-surface/50">
+          <div className="flex items-center">
+            <div className={`p-4 rounded-xl mr-5 shadow-inner border ${segment.isAlarm ? 'bg-bg-alarm border-red-500/50' : 'bg-bg-base border-border'}`}>
+              <AlertTriangle size={32} className={`${segment.isAlarm ? 'text-red-500 animate-pulse' : 'text-scada-primary'}`} />
+            </div>
             <div>
-              <h2 className="text-2xl font-bold text-text-primary tracking-wider">{segment.name}</h2>
-              <p className="text-sm text-text-secondary font-mono tracking-widest uppercase">ID: {segment.id} • Segment Detail</p>
+              {isEditingName && isAdmin ? (
+                <div className="flex items-center space-x-2">
+                  <input 
+                    type="text" 
+                    value={name} 
+                    onChange={e => setName(e.target.value)}
+                    className="bg-bg-base border border-scada-primary rounded px-2 py-1 text-2xl font-bold text-text-primary focus:outline-none"
+                    autoFocus
+                  />
+                  <button 
+                    onClick={() => {
+                      setIsEditingName(false);
+                      if (onRename && segment.mappingId) onRename(segment.mappingId, name);
+                    }}
+                    className="p-2 bg-scada-primary/20 text-scada-primary rounded hover:bg-scada-primary hover:text-white transition-colors"
+                  >
+                    <Save size={18} />
+                  </button>
+                </div>
+              ) : (
+                <h2 className="text-2xl font-bold text-text-primary tracking-wider flex items-center">
+                  {name}
+                  {isAdmin && (
+                    <button onClick={() => setIsEditingName(true)} className="ml-3 text-text-secondary hover:text-scada-primary text-sm transition-colors uppercase tracking-widest bg-bg-base px-2 py-1 rounded border border-border">
+                      Rename
+                    </button>
+                  )}
+                </h2>
+              )}
+              <p className="text-sm text-text-secondary font-mono tracking-widest uppercase mt-1">
+                AreaTable (DTS): <span className="text-text-primary font-bold">{segment.original_name || 'N/A'}</span> • ID: {segment.id}
+              </p>
             </div>
           </div>
           <button 
