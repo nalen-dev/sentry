@@ -10,6 +10,8 @@ interface TopNavbarProps {
   userRole: string;
 }
 
+import { invoke } from '@tauri-apps/api/core';
+
 export default function TopNavbar({ 
   isFullscreen, 
   isDarkMode, 
@@ -21,22 +23,16 @@ export default function TopNavbar({
   const location = useLocation();
   const [isTrueFullscreen, setIsTrueFullscreen] = useState(false);
 
-  useEffect(() => {
-    // Check initial fullscreen state if running in Tauri
-    if ('__TAURI_INTERNALS__' in window) {
-      import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-        getCurrentWindow().isFullscreen().then(setIsTrueFullscreen);
-      });
-    }
-  }, []);
-
+  // Note: We cannot easily check initial fullscreen without invoke, so we'll just assume false initially.
+  
   const toggleOSFullscreen = async () => {
     if ('__TAURI_INTERNALS__' in window) {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const appWindow = getCurrentWindow();
-      const current = await appWindow.isFullscreen();
-      await appWindow.setFullscreen(!current);
-      setIsTrueFullscreen(!current);
+      try {
+        const newState = await invoke<boolean>('toggle_fullscreen');
+        setIsTrueFullscreen(newState);
+      } catch (err) {
+        console.error("Failed to toggle fullscreen:", err);
+      }
     } else {
       // Browser fallback
       if (!document.fullscreenElement) {

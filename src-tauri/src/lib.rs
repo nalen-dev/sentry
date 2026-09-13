@@ -49,6 +49,13 @@ async fn get_users(state: tauri::State<'_, SqlitePool>) -> Result<Vec<User>, Str
     Ok(rows)
 }
 
+#[tauri::command]
+async fn toggle_fullscreen(window: tauri::Window) -> Result<bool, String> {
+    let is_fullscreen = window.is_fullscreen().unwrap_or(false);
+    window.set_fullscreen(!is_fullscreen).map_err(|e| e.to_string())?;
+    Ok(!is_fullscreen)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -69,7 +76,7 @@ pub fn run() {
             
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_all_settings, save_setting, get_users])
+        .invoke_handler(tauri::generate_handler![get_all_settings, save_setting, get_users, toggle_fullscreen])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
