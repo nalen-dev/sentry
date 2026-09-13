@@ -140,6 +140,15 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom }: 
           attribution="&copy; Google Maps"
           maxNativeZoom={18}
           maxZoom={21}
+          eventHandlers={{
+            tileerror: () => {
+              setIsOnline(false);
+            },
+            tileload: () => {
+              // Jika berhasil load tile baru, anggap online kembali
+              if (!isOnline) setIsOnline(true);
+            }
+          }}
         />
         
         {/* DEFAULT VIEW (Zoom Out) */}
