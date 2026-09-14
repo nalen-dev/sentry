@@ -155,7 +155,11 @@ export default function Dashboard() {
         mainGroup: m.main_group,
         subGroup: m.sub_group,
         mappingId: m.id,
-        original_name: m.original_name
+        original_name: m.original_name,
+        dts_ch: m.dts_ch,
+        dts_code: m.dts_code,
+        start_m: m.start_m ?? undefined,
+        end_m: m.end_m ?? undefined,
       }))
     : DUMMY_AREAS.map(a => ({ ...a, mainGroup: 'Unassigned', subGroup: null, mappingId: undefined, original_name: undefined }));
 

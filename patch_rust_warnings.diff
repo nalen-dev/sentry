@@ -1,0 +1,22 @@
+--- src-tauri/src/lib.rs
++++ src-tauri/src/lib.rs
+@@ -330,7 +330,8 @@
+     let mysql_pool = sqlx::mysql::MySqlPoolOptions::new().max_connections(1).connect_with(options).await.map_err(|e| e.to_string())?;
+     
+     #[derive(sqlx::FromRow)]
+-    struct HistRow { CreationTime: Option<chrono::NaiveDateTime>, TempAvg: i32 }
++    #[allow(non_snake_case)]
++    struct HistRow { CreationTime: Option<chrono::NaiveDateTime>, TempAvg: Option<i32> }
+     
+     let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
+         .bind(dts_ch).bind(dts_code).bind(limit)
+@@ -341,7 +342,7 @@
+     for r in rows.into_iter().rev() { // reverse so oldest is first in chart
+         if let Some(ct) = r.CreationTime {
+             points.push(HistoryPoint { 
+                 time: ct.format("%H:%M:%S").to_string(), 
+-                temp: r.TempAvg as f32 / 10.0 
++                temp: r.TempAvg.unwrap_or(0) as f32 / 10.0 
+             });
+         }
+     }

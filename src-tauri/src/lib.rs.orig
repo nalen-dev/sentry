@@ -332,8 +332,7 @@ async fn get_segment_history(
     let mysql_pool = sqlx::mysql::MySqlPoolOptions::new().max_connections(1).connect_with(options).await.map_err(|e| e.to_string())?;
     
     #[derive(sqlx::FromRow)]
-    #[allow(non_snake_case)]
-    struct HistRow { CreationTime: Option<chrono::NaiveDateTime>, TempAvg: Option<i32> }
+    struct HistRow { CreationTime: Option<chrono::NaiveDateTime>, TempAvg: i32 }
     
     let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
         .bind(dts_ch).bind(dts_code).bind(limit)
@@ -345,7 +344,7 @@ async fn get_segment_history(
         if let Some(ct) = r.CreationTime {
             points.push(HistoryPoint { 
                 time: ct.format("%H:%M:%S").to_string(), 
-                temp: r.TempAvg.unwrap_or(0) as f32 / 10.0 
+                temp: r.TempAvg as f32 / 10.0 
             });
         }
     }
