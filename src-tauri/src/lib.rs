@@ -255,6 +255,150 @@ async fn get_live_segments(state: tauri::State<'_, SqlitePool>) -> Result<Vec<Li
     Ok(results)
 }
 
+#[derive(serde::Serialize)]
+pub struct CurvePoint {
+    pub distance: i32,
+    pub temp: f32,
+}
+
+#[tauri::command]
+async fn get_segment_curve(
+    dts_ch: i32,
+    start_m: i32,
+    end_m: i32,
+    state: tauri::State<'_, SqlitePool>
+) -> Result<Vec<CurvePoint>, String> {
+    let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
+        .fetch_all(&*state).await.map_err(|e| e.to_string())?;
+        
+    let mut db_host = String::from("192.168.1.64");
+    let mut db_port = String::from("58329");
+    let mut db_user = String::from("root");
+    let mut db_pass = String::from("l0mY4cH9H?h9");
+    let mut db_name = String::from("dtscontroler");
+    for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
+    
+    let options = sqlx::mysql::MySqlConnectOptions::new().host(&db_host).port(db_port.parse().unwrap_or(3306)).username(&db_user).password(&db_pass).database(&db_name);
+    let mysql_pool = sqlx::mysql::MySqlPoolOptions::new().max_connections(1).connect_with(options).await.map_err(|e| e.to_string())?;
+    
+    #[derive(sqlx::FromRow)]
+    struct CurveRow { str: Option<String> }
+    
+    let row: Option<CurveRow> = sqlx::query_as("SELECT str FROM curvebuff WHERE Ch = ?")
+        .bind(dts_ch)
+        .fetch_optional(&mysql_pool)
+        .await.map_err(|e| e.to_string())?;
+        
+    let mut points = Vec::new();
+    if let Some(r) = row {
+        if let Some(s) = r.str {
+            let vals: Vec<&str> = s.split(',').collect();
+            let end = std::cmp::min(end_m as usize, vals.len().saturating_sub(1));
+            let start = std::cmp::min(start_m as usize, end);
+            
+            for i in start..=end {
+                let t = vals[i].parse::<f32>().unwrap_or(0.0) / 10.0;
+                points.push(CurvePoint { distance: i as i32, temp: t });
+            }
+        }
+    }
+    Ok(points)
+}
+
+#[derive(serde::Serialize)]
+pub struct HistoryPoint {
+    pub time: String,
+    pub temp: f32,
+}
+
+#[tauri::command]
+async fn get_segment_history(
+    dts_ch: i32,
+    dts_code: i32,
+    limit: i32,
+    state: tauri::State<'_, SqlitePool>
+) -> Result<Vec<HistoryPoint>, String> {
+    let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
+        .fetch_all(&*state).await.map_err(|e| e.to_string())?;
+        
+    let mut db_host = String::from("192.168.1.64");
+    let mut db_port = String::from("58329");
+    let mut db_user = String::from("root");
+    let mut db_pass = String::from("l0mY4cH9H?h9");
+    let mut db_name = String::from("dtscontroler");
+    for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
+    
+    let options = sqlx::mysql::MySqlConnectOptions::new().host(&db_host).port(db_port.parse().unwrap_or(3306)).username(&db_user).password(&db_pass).database(&db_name);
+    let mysql_pool = sqlx::mysql::MySqlPoolOptions::new().max_connections(1).connect_with(options).await.map_err(|e| e.to_string())?;
+    
+    #[derive(sqlx::FromRow)]
+    struct HistRow { CreationTime: Option<chrono::NaiveDateTime>, TempAvg: i32 }
+    
+    let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
+        .bind(dts_ch).bind(dts_code).bind(limit)
+        .fetch_all(&mysql_pool)
+        .await.map_err(|e| e.to_string())?;
+        
+    let mut points = Vec::new();
+    for r in rows.into_iter().rev() { // reverse so oldest is first in chart
+        if let Some(ct) = r.CreationTime {
+            points.push(HistoryPoint { 
+                time: ct.format("%H:%M:%S").to_string(), 
+                temp: r.TempAvg as f32 / 10.0 
+            });
+        }
+    }
+    Ok(points)
+}
+
+#[derive(serde::Serialize)]
+pub struct AlarmLog {
+    pub id: i32,
+    pub time: String,
+    pub ch: i32,
+    pub code: i32,
+    pub distance: i32,
+    pub alarm_type: i32,
+    pub temp: f32,
+    pub is_active: bool,
+}
+
+#[tauri::command]
+async fn get_alarms(state: tauri::State<'_, SqlitePool>) -> Result<Vec<AlarmLog>, String> {
+    let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
+        .fetch_all(&*state).await.map_err(|e| e.to_string())?;
+        
+    let mut db_host = String::from("192.168.1.64");
+    let mut db_port = String::from("58329");
+    let mut db_user = String::from("root");
+    let mut db_pass = String::from("l0mY4cH9H?h9");
+    let mut db_name = String::from("dtscontroler");
+    for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
+    
+    let options = sqlx::mysql::MySqlConnectOptions::new().host(&db_host).port(db_port.parse().unwrap_or(3306)).username(&db_user).password(&db_pass).database(&db_name);
+    let mysql_pool = sqlx::mysql::MySqlPoolOptions::new().max_connections(1).connect_with(options).await.map_err(|e| e.to_string())?;
+    
+    #[derive(sqlx::FromRow)]
+    #[allow(non_snake_case)]
+    struct AlarmRow { ID: i32, CreationTime: Option<chrono::NaiveDateTime>, Ch: Option<i32>, Code: Option<i32>, AlarmPoint: Option<i32>, AlarmCode: Option<i32>, AlarmTemp: Option<i32>, AlarmResetTime: Option<chrono::NaiveDateTime> }
+    
+    let rows: Vec<AlarmRow> = sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog ORDER BY CreationTime DESC LIMIT 50")
+        .fetch_all(&mysql_pool)
+        .await.map_err(|e| e.to_string())?;
+        
+    let mut alarms = Vec::new();
+    for r in rows {
+        let t = r.CreationTime.map(|ct| ct.format("%H:%M:%S").to_string()).unwrap_or_default();
+        let is_active = r.AlarmResetTime.is_none();
+        alarms.push(AlarmLog {
+            id: r.ID, time: t, ch: r.Ch.unwrap_or(0), code: r.Code.unwrap_or(0),
+            distance: r.AlarmPoint.unwrap_or(0), alarm_type: r.AlarmCode.unwrap_or(0),
+            temp: r.AlarmTemp.unwrap_or(0) as f32 / 10.0, is_active
+        });
+    }
+    Ok(alarms)
+}
+
 #[tauri::command]
 async fn test_db_connection(
     host: String,
@@ -315,6 +459,9 @@ pub fn run() {
             sync_dts_segments,
             get_segment_mappings,
             get_live_segments,
+            get_segment_curve,
+            get_segment_history,
+            get_alarms,
             update_segment_mapping,
             test_db_connection
         ])

@@ -23,6 +23,7 @@ interface UserData {
 }
 
 import MappingGrid, { SegmentMapping } from '../components/MappingGrid';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function SettingPage() {
   const { showToast } = useToast();
@@ -38,6 +39,7 @@ export default function SettingPage() {
   // Backend States
   const [users, setUsers] = useState<UserData[]>([]);
   const [mappings, setMappings] = useState<SegmentMapping[]>([]);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   
   // Local form states
   const [warningThreshold, setWarningThreshold] = useState("60.0");
@@ -90,9 +92,11 @@ export default function SettingPage() {
     }
   };
 
-  const handleSyncDts = async () => {
-    const confirmSync = window.confirm("WARNING: Syncing will wipe all existing segment groups and aliases, replacing them with fresh data from active DTS channels. Continue?");
-    if (!confirmSync) return;
+  const handleSyncDts = () => {
+    setShowConfirmModal(true);
+  };
+
+  const confirmSyncDts = async () => {
     try {
       const res: any = await invoke('sync_dts_segments');
       showToast(`Sync Complete! Found ${res.total_found} segments. Added ${res.new_added} new segments to local mapping.`, "success");
@@ -450,6 +454,7 @@ export default function SettingPage() {
           </div>
         </div>
       </div>
+      <ConfirmModal isOpen={showConfirmModal} title="Confirm DTS Sync" message="WARNING: Syncing will wipe all existing segment groups and aliases, replacing them with fresh data from active DTS channels. Continue?" confirmText="Yes, Wipe & Sync" cancelText="Cancel" variant="danger" onConfirm={confirmSyncDts} onCancel={() => setShowConfirmModal(false)} />
     </div>
   );
 }

@@ -1,23 +1,41 @@
 --- SettingPage.tsx
 +++ SettingPage.tsx
-@@ -108,18 +108,8 @@
-         subGroup
-       });
-     }
--    handleLoadMappings();
--  };
--
--  const handleUpdateMapping = async (id: number, customName: string | null, mainGroup: string, subGroup: string | null) => {
--    try {
--      await invoke('update_segment_mapping', { id, customName, mainGroup, subGroup });
--      // reload mappings
--      const fetchedMappings: SegmentMapping[] = await invoke('get_segment_mappings');
--      setMappings(fetchedMappings);
--    } catch (err) {
--      console.error("Failed to update mapping:", err);
--    }
-+    const fetchedMappings: SegmentMapping[] = await invoke('get_segment_mappings');
-+    setMappings(fetchedMappings);
+@@ -4,6 +4,7 @@
+ import { useToast } from '../contexts/ToastContext';
+ import { DUMMY_AREAS } from '../data/constants';
+ import MappingGrid from '../components/MappingGrid';
++import ConfirmModal from '../components/ConfirmModal';
+ 
+ interface SegmentMapping {
+   id: number;
+@@ -48,6 +49,7 @@
+   
+   const [saving, setSaving] = useState(false);
+   const [syncing, setSyncing] = useState(false);
++  const [showSyncConfirm, setShowSyncConfirm] = useState(false);
+ 
+   useEffect(() => {
+     loadMappings();
+@@ -79,15 +81,10 @@
    };
  
-   const handleTestConnection = async () => {
+   const handleSyncDTS = async () => {
+-    if (window.confirm("WARNING: This will replace your local segment groupings with the latest configuration from the DTS. Unassigned segments will be placed in the 'Unassigned' group.\n\nAre you sure you want to proceed?")) {
+-      try {
+-        setSyncing(true);
+-        await invoke('sync_dts_segments');
+-        await loadMappings();
+-        addToast({ title: 'Sync Successful', message: 'DTS active channels imported.', type: 'success' });
+-      } catch (err: any) {
+-        addToast({ title: 'Sync Failed', message: err.toString(), type: 'error' });
+-      } finally {
+-        setSyncing(false);
+-      }
+-    }
++    setShowSyncConfirm(true);
++  };
++
++  const confirmSyncDTS = async () => {
++    try {
++      setSyncing(true);
++      await invoke('sync_dts_segments');

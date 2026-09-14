@@ -1,0 +1,65 @@
+--- src/pages/Dashboard.tsx
++++ src/pages/Dashboard.tsx
+@@ -29,6 +29,17 @@
+   temp_max_p: number;
+ }
+ 
++interface AlarmLog {
++  id: number;
++  time: string;
++  ch: number;
++  code: number;
++  distance: number;
++  alarm_type: number;
++  temp: number;
++  is_active: bool;
++}
++
+ export default function Dashboard() {
+   const [viewMode, setViewMode] = useState<'satellite' | 'diagram'>('satellite');
+   const [isFullscreen, setIsFullscreen] = useState(false);
+@@ -47,6 +58,7 @@
+   const [userId, setUserId] = useState('OP-7729');
+ 
+   const [mappings, setMappings] = useState<LiveSegment[]>([]);
++  const [alarms, setAlarms] = useState<AlarmLog[]>([]);
+   const [activeMainGroup, setActiveMainGroup] = useState<string>('All');
+   const [activeSubGroup, setActiveSubGroup] = useState<string>('All');
+ 
+@@ -63,6 +75,9 @@
+         import('@tauri-apps/api/core').then(({ invoke }) => {
+           invoke<LiveSegment[]>('get_live_segments')
+             .then(setMappings)
+             .catch(err => console.error("Failed to load live segments", err));
++            
++          invoke<AlarmLog[]>('get_alarms')
++            .then(setAlarms)
++            .catch(err => console.error("Failed to load alarms", err));
+         });
+       };
+       
+@@ -131,7 +146,7 @@
+         temp_max: m.temp_max,
+         temp_min_p: m.temp_min_p,
+         temp_max_p: m.temp_max_p,
+-        isAlarm: false, status: 'Normal',
++        isAlarm: alarms.some(a => a.is_active && a.ch === m.dts_ch && a.code === m.dts_code), status: 'Normal',
+         mainGroup: m.main_group,
+         subGroup: m.sub_group,
+         mappingId: m.id,
+@@ -282,10 +297,14 @@
+       />
+ 
+       {/* LOG & STATUS PANEL (BOTTOM RIGHT) */}
+       <LogPanel 
+         isFullscreen={isFullscreen}
+-        dummyLogs={DUMMY_LOGS}
++        dummyLogs={alarms.map(a => ({
++          id: a.id,
++          time: a.time,
++          msg: `Ch${a.ch}-C${a.code} at ${a.distance}m: ${a.alarm_type === 1 ? 'High Temp' : a.alarm_type === 2 ? 'Low Temp' : a.alarm_type === 3 ? 'Temp Rise' : a.alarm_type === 4 ? 'Fiber Break' : 'Anti-tamper'} (${a.temp}C)`,
++          type: a.is_active ? 'error' : 'info'
++        }))}
+         currentTime={currentTime}
+       />
+ 

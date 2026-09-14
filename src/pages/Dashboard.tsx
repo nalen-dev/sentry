@@ -10,7 +10,7 @@ import LogPanel from '../features/dashboard/LogPanel';
 import LeftPanel from '../features/dashboard/LeftPanel';
 import RightPanel from '../features/dashboard/RightPanel';
 import DataModal from '../features/dashboard/DataModal';
-import { DUMMY_AREAS, DUMMY_LOGS, DUMMY_CHART_DATA } from '../data/constants';
+import { DUMMY_AREAS, DUMMY_CHART_DATA } from '../data/constants';
 
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
@@ -32,6 +32,17 @@ interface LiveSegment {
   temp_max_p: number;
 }
 
+export interface AlarmLog {
+  id: number;
+  time: string;
+  ch: number;
+  code: number;
+  distance: number;
+  alarm_type: number;
+  temp: number;
+  is_active: boolean;
+}
+
 export default function Dashboard() {
   const [viewMode, setViewMode] = useState<'satellite' | 'diagram'>('satellite');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -46,6 +57,7 @@ export default function Dashboard() {
   const [userId, setUserId] = useState('OP-7729');
 
   const [mappings, setMappings] = useState<LiveSegment[]>([]);
+  const [alarms, setAlarms] = useState<AlarmLog[]>([]);
   const [activeMainGroup, setActiveMainGroup] = useState<string>('All');
   const [activeSubGroup, setActiveSubGroup] = useState<string>('All');
 
@@ -65,6 +77,10 @@ export default function Dashboard() {
           invoke<LiveSegment[]>('get_live_segments')
             .then(setMappings)
             .catch(err => console.error("Failed to load live segments", err));
+            
+          invoke<AlarmLog[]>('get_alarms')
+            .then(setAlarms)
+            .catch(err => console.error("Failed to load alarms", err));
         });
       };
       
@@ -134,7 +150,8 @@ export default function Dashboard() {
         temp_max: m.temp_max,
         temp_min_p: m.temp_min_p,
         temp_max_p: m.temp_max_p,
-        isAlarm: false, status: 'Normal',
+        isAlarm: alarms.some(a => a.is_active && a.ch === m.dts_ch && a.code === m.dts_code), 
+        status: alarms.some(a => a.is_active && a.ch === m.dts_ch && a.code === m.dts_code) ? 'Alarm' : 'Normal',
         mainGroup: m.main_group,
         subGroup: m.sub_group,
         mappingId: m.id,
@@ -282,11 +299,16 @@ export default function Dashboard() {
           )}
         </aside>
 
-        {/* BOTTOM RIGHT FLOATING CONTAINER */}
+        {/* LOG & STATUS PANEL (BOTTOM RIGHT) */}
         <LogPanel 
-          isFullscreen={isFullscreen} 
-          dummyLogs={DUMMY_LOGS} 
-          currentTime={currentTime} 
+          isFullscreen={isFullscreen}
+          dummyLogs={alarms.map(a => ({
+            id: a.id,
+            time: a.time,
+            msg: `Ch${a.ch}-C${a.code} at ${a.distance}m: ${a.alarm_type === 1 ? 'High Temp' : a.alarm_type === 2 ? 'Low Temp' : a.alarm_type === 3 ? 'Temp Rise' : a.alarm_type === 4 ? 'Fiber Break' : 'Anti-tamper'} (${a.temp}°C)`,
+            type: a.is_active ? 'error' : 'info'
+          }))}
+          currentTime={currentTime}
         />
 
         {/* FULLSCREEN DATA MODAL */}

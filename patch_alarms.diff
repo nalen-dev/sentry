@@ -1,0 +1,55 @@
+--- src-tauri/src/lib.rs
++++ src-tauri/src/lib.rs
+@@ -351,6 +351,46 @@
+     Ok(points)
+ }
+ 
++#[derive(serde::Serialize)]
++pub struct AlarmLog {
++    pub id: i32,
++    pub time: String,
++    pub ch: i32,
++    pub code: i32,
++    pub distance: i32,
++    pub alarm_type: i32,
++    pub temp: f32,
++    pub is_active: bool,
++}
++
++#[tauri::command]
++async fn get_alarms(state: tauri::State<'_, SqlitePool>) -> Result<Vec<AlarmLog>, String> {
++    let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
++        .fetch_all(&*state).await.map_err(|e| e.to_string())?;
++        
++    let mut db_host = String::from("192.168.1.64");
++    let mut db_port = String::from("58329");
++    let mut db_user = String::from("root");
++    let mut db_pass = String::from("l0mY4cH9H?h9");
++    let mut db_name = String::from("dtscontroler");
++    for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
++    
++    let options = sqlx::mysql::MySqlConnectOptions::new().host(&db_host).port(db_port.parse().unwrap_or(3306)).username(&db_user).password(&db_pass).database(&db_name);
++    let mysql_pool = sqlx::mysql::MySqlPoolOptions::new().max_connections(1).connect_with(options).await.map_err(|e| e.to_string())?;
++    
++    #[derive(sqlx::FromRow)]
++    struct AlarmRow { ID: i32, CreationTime: Option<chrono::NaiveDateTime>, Ch: Option<i32>, Code: Option<i32>, AlarmPoint: Option<i32>, AlarmCode: Option<i32>, AlarmTemp: Option<i32>, AlarmResetTime: Option<chrono::NaiveDateTime> }
++    
++    let rows: Vec<AlarmRow> = sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog ORDER BY CreationTime DESC LIMIT 50")
++        .fetch_all(&mysql_pool)
++        .await.map_err(|e| e.to_string())?;
++        
++    let mut alarms = Vec::new();
++    for r in rows {
++        let t = r.CreationTime.map(|ct| ct.format("%Y-%m-%d %H:%M:%S").to_string()).unwrap_or_default();
++        let is_active = r.AlarmResetTime.is_none();
++        alarms.push(AlarmLog {
++            id: r.ID, time: t, ch: r.Ch.unwrap_or(0), code: r.Code.unwrap_or(0),
++            distance: r.AlarmPoint.unwrap_or(0), alarm_type: r.AlarmCode.unwrap_or(0),
++            temp: r.AlarmTemp.unwrap_or(0) as f32 / 10.0, is_active
++        });
++    }
++    Ok(alarms)
++}
++
+ #[tauri::command]
+ async fn test_db_connection(

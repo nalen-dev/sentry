@@ -1,11 +1,69 @@
 --- src/pages/SettingPage.tsx
 +++ src/pages/SettingPage.tsx
-@@ -79,6 +79,8 @@
+@@ -4,6 +4,7 @@
+ import { useToast } from '../contexts/ToastContext';
+ import { DUMMY_AREAS } from '../data/constants';
+ import MappingGrid from '../components/MappingGrid';
++import ConfirmModal from '../components/ConfirmModal';
+ 
+ interface SegmentMapping {
+   id: number;
+@@ -48,6 +49,7 @@
+   
+   const [saving, setSaving] = useState(false);
+   const [syncing, setSyncing] = useState(false);
++  const [showSyncConfirm, setShowSyncConfirm] = useState(false);
+ 
+   useEffect(() => {
+     loadMappings();
+@@ -79,15 +81,10 @@
    };
  
-   const handleSyncDts = async () => {
-+    const confirmSync = window.confirm("WARNING: Syncing will wipe all existing segment groups and aliases, replacing them with fresh data from active DTS channels. Continue?");
-+    if (!confirmSync) return;
-     try {
-       const res: any = await invoke('sync_dts_segments');
-       showToast(`Sync Complete! Found ${res.total_found} segments. Added ${res.new_added} new segments to local mapping.`, "success");
+   const handleSyncDTS = async () => {
+-    if (window.confirm("WARNING: This will replace your local segment groupings with the latest configuration from the DTS. Unassigned segments will be placed in the 'Unassigned' group.\n\nAre you sure you want to proceed?")) {
+-      try {
+-        setSyncing(true);
+-        await invoke('sync_dts_segments');
+-        await loadMappings();
+-        addToast({ title: 'Sync Successful', message: 'DTS active channels imported.', type: 'success' });
+-      } catch (err: any) {
+-        addToast({ title: 'Sync Failed', message: err.toString(), type: 'error' });
+-      } finally {
+-        setSyncing(false);
+-      }
+-    }
++    setShowSyncConfirm(true);
++  };
++
++  const confirmSyncDTS = async () => {
++    try {
++      setSyncing(true);
++      await invoke('sync_dts_segments');
++      await loadMappings();
++      addToast({ title: 'Sync Successful', message: 'DTS active channels imported.', type: 'success' });
++    } catch (err: any) {
++      addToast({ title: 'Sync Failed', message: err.toString(), type: 'error' });
++    } finally {
++      setSyncing(false);
++    }
+   };
+ 
+   // Grouping existing mappings
+@@ -291,6 +288,16 @@
+           </div>
+         </div>
+       </div>
++      
++      <ConfirmModal 
++        isOpen={showSyncConfirm}
++        title="Confirm DTS Sync"
++        message="WARNING: This will replace your local segment groupings with the latest configuration from the DTS.\n\nAll existing customizations will be overwritten. Unassigned segments will be placed in the 'Unassigned' group.\n\nAre you sure you want to proceed?"
++        confirmText="Yes, Wipe & Sync"
++        cancelText="Cancel"
++        variant="danger"
++        onConfirm={confirmSyncDTS}
++        onCancel={() => setShowSyncConfirm(false)}
++      />
+     </div>
+   );
+ }
