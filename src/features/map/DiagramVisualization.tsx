@@ -3,10 +3,10 @@ import { DUMMY_AREAS } from '../../data/constants';
 
 export default function DiagramVisualization({ isFullscreen }: { isFullscreen: boolean }) {
   const getStrokeClass = (areaId: string) => {
-    const area = DUMMY_AREAS.find(a => a.id === areaId);
+    const area = DUMMY_AREAS.find(a => String(a.id) === String(areaId));
     if (!area) return 'stroke-border';
     if (area.isAlarm) return 'stroke-red-500 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]';
-    if (parseFloat(area.temp) >= 45) return 'stroke-yellow-500';
+    if (area.temp >= 45) return 'stroke-yellow-500';
     return 'stroke-scada-primary';
   };
 

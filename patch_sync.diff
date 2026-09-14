@@ -1,0 +1,39 @@
+--- src-tauri/src/lib.rs
++++ src-tauri/src/lib.rs
+@@ -116,21 +116,24 @@
+     #[derive(sqlx::FromRow)]
+     struct OptRow { ch: i32, code: Option<i32>, fq_table: Option<String>, start: Option<i32>, end: Option<i32> }
+ 
+-    let rows: Vec<OptRow> = sqlx::query_as("SELECT Ch as ch, Code as code, FqTable as fq_table, Start as start, End as end FROM opt_fq_list")
++    // Join with chinfo to only fetch segments from channels that are enabled (En = 1)
++    let rows: Vec<OptRow> = sqlx::query_as(
++        "SELECT f.Ch as ch, f.Code as code, f.FqTable as fq_table, f.Start as start, f.End as end 
++         FROM opt_fq_list f 
++         JOIN chinfo c ON f.Ch = c.Code 
++         WHERE c.En = 1"
++    )
+         .fetch_all(&mysql_pool)
+         .await
+         .map_err(|e| format!("Failed to fetch segments: {}", e))?;
+ 
++    // Wipe old data
++    let _ = sqlx::query("DELETE FROM segment_mappings").execute(&*state).await;
++
+     // 4. Sync to SQLite
+     let mut new_added = 0;
+     for row in &rows {
+         if let Some(code) = row.code {
+             let original_name = row.fq_table.clone().unwrap_or_else(|| format!("CSection{}", code));
+             
+-            // First update start/end for existing ones
+-            let _ = sqlx::query("UPDATE segment_mappings SET start_m = ?, end_m = ? WHERE dts_ch = ? AND dts_code = ?")
+-                .bind(row.start)
+-                .bind(row.end)
+-                .bind(row.ch)
+-                .bind(code)
+-                .execute(&*state)
+-                .await;
+-
+             let result = sqlx::query(
+                 "INSERT OR IGNORE INTO segment_mappings (dts_ch, dts_code, original_name, main_group, start_m, end_m) 
+                  VALUES (?, ?, ?, 'Unassigned', ?, ?)"

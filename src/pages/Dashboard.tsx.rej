@@ -1,0 +1,22 @@
+--- Dashboard.tsx
++++ Dashboard.tsx
+@@ -14,13 +14,18 @@
+ import { getCurrentWindow } from '@tauri-apps/api/window';
+ import { invoke } from '@tauri-apps/api/core';
+ 
+-interface SegmentMapping {
++interface LiveSegment {
+   id: number;
+   dts_ch: number;
+   dts_code: number;
+   original_name: string;
+   custom_name: string | null;
+   main_group: string;
+   sub_group: string | null;
+   start_m?: number | null;
+   end_m?: number | null;
++  temp_avg: number;
++  temp_min: number;
++  temp_max: number;
++  temp_min_p: number;
++  temp_max_p: number;

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import TopNavbar from '../components/layout/TopNavbar';
 import { invoke } from '@tauri-apps/api/core';
+import { useToast } from '../contexts/ToastContext';
 
 type SettingTab = 'time' | 'mapping' | 'users' | 'database' | 'threshold' | 'advanced';
 
@@ -24,6 +25,7 @@ interface UserData {
 import MappingGrid, { SegmentMapping } from '../components/MappingGrid';
 
 export default function SettingPage() {
+  const { showToast } = useToast();
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('theme');
     return saved ? saved === 'dark' : true;
@@ -91,13 +93,13 @@ export default function SettingPage() {
   const handleSyncDts = async () => {
     try {
       const res: any = await invoke('sync_dts_segments');
-      alert(`Sync Complete! Found ${res.total_found} segments. Added ${res.new_added} new segments to local mapping.`);
+      showToast(`Sync Complete! Found ${res.total_found} segments. Added ${res.new_added} new segments to local mapping.`, "success");
       // reload mappings
       const fetchedMappings: SegmentMapping[] = await invoke('get_segment_mappings');
       setMappings(fetchedMappings);
     } catch (err) {
       console.error("Failed to sync:", err);
-      alert("Error syncing DTS: " + err);
+      showToast("Error syncing DTS: " + err, "error");
     }
   };
 
@@ -110,17 +112,8 @@ export default function SettingPage() {
         subGroup
       });
     }
-    handleLoadMappings();
-  };
-
-  const handleUpdateMapping = async (id: number, customName: string | null, mainGroup: string, subGroup: string | null) => {
-    try {
-      await invoke('update_segment_mapping', { id, customName, mainGroup, subGroup });
-      // update local state
-      setMappings(prev => prev.map(m => m.id === id ? { ...m, custom_name: customName, main_group: mainGroup, sub_group: subGroup } : m));
-    } catch (err) {
-      console.error("Failed to update mapping:", err);
-    }
+    const fetchedMappings: SegmentMapping[] = await invoke('get_segment_mappings');
+    setMappings(fetchedMappings);
   };
 
   const [isTestingDb, setIsTestingDb] = useState(false);
@@ -147,7 +140,7 @@ export default function SettingPage() {
 
   const handleSaveAll = async () => {
     if (!isTauri) {
-      alert("Settings cannot be saved in a normal web browser. Please run the Tauri desktop app.");
+      showToast("Settings cannot be saved in a normal web browser.", "error");
       return;
     }
     try {
@@ -159,10 +152,10 @@ export default function SettingPage() {
       await invoke('save_setting', { key: 'db_user', value: dbUser });
       await invoke('save_setting', { key: 'db_pass', value: dbPass });
       
-      alert("Settings saved successfully to SQLite database!");
+      showToast("Settings saved successfully!", "success");
     } catch (err) {
       console.error("Failed to save settings:", err);
-      alert("Error saving settings: " + err);
+      showToast("Error saving settings: " + err, "error");
     }
   };
 

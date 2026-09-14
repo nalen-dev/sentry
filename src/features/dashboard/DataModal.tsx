@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { List, X, Grid, ChevronDown, ChevronUp, MapPin } from 'lucide-react';
+import { List, X, Grid, ChevronDown, ChevronUp, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import { SegmentData } from '../../components/SegmentDetailModal';
 
 interface DataModalProps {
@@ -11,6 +11,25 @@ interface DataModalProps {
 export default function DataModal({ onClose, areas, setSelectedSegment }: DataModalProps) {
   const [viewMode, setViewMode] = useState<'grouped' | 'table'>('grouped');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [groupPages, setGroupPages] = useState<Record<string, number>>({});
+  const [tablePage, setTablePage] = useState(1);
+
+  const toggleGroup = (groupName: string) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupName]: !prev[groupName]
+    }));
+  };
+
+  const handleGroupPageChange = (groupName: string, delta: number) => {
+    setGroupPages(prev => ({
+      ...prev,
+      [groupName]: (prev[groupName] || 1) + delta
+    }));
+  };
+
+
+
 
   // Group data
   const groupedData = useMemo(() => {
@@ -23,8 +42,8 @@ export default function DataModal({ onClose, areas, setSelectedSegment }: DataMo
 
     // Calculate stats for each group
     const result = Object.entries(groups).map(([groupName, groupAreas]) => {
-      const sorted = [...groupAreas].sort((a, b) => parseFloat(b.temp) - parseFloat(a.temp));
-      const avg = sorted.reduce((sum, item) => sum + parseFloat(item.temp), 0) / (sorted.length || 1);
+      const sorted = [...groupAreas].sort((a, b) => b.temp - a.temp);
+      const avg = sorted.reduce((sum, item) => sum + item.temp, 0) / (sorted.length || 1);
       
       return {
         groupName,
@@ -38,9 +57,6 @@ export default function DataModal({ onClose, areas, setSelectedSegment }: DataMo
     return result.sort((a, b) => a.groupName.localeCompare(b.groupName));
   }, [areas]);
 
-  const toggleGroup = (groupName: string) => {
-    setExpandedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
-  };
 
   return (
     <div className="absolute inset-0 z-50 flex flex-col bg-bg-base/95 backdrop-blur-md p-8 animate-in fade-in zoom-in-95 duration-200">
@@ -135,8 +151,9 @@ export default function DataModal({ onClose, areas, setSelectedSegment }: DataMo
                     </button>
 
                     {expandedGroups[group.groupName] && (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 lg:grid-cols-8 gap-2 mt-3 animate-in fade-in slide-in-from-top-2">
-                        {group.others.map(area => (
+                      <div className="mt-3 animate-in fade-in slide-in-from-top-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-3">
+                        {group.others.slice(((groupPages[group.groupName] || 1) - 1) * 10, (groupPages[group.groupName] || 1) * 10).map(area => (
                           <div 
                             key={area.id} 
                             onClick={() => { setSelectedSegment(area); onClose(); }}
@@ -145,10 +162,18 @@ export default function DataModal({ onClose, areas, setSelectedSegment }: DataMo
                             <span className="font-bold text-xs truncate text-text-primary">{area.name}</span>
                             <div className="flex justify-between items-end mt-1">
                               <span className="text-[10px] text-text-secondary truncate">{area.distance}</span>
-                              <span className="font-mono text-xs font-bold text-scada-success">{area.temp}°C</span>
+                              <span className="font-mono text-xs font-bold text-scada-success">{area.temp_avg ?? area.temp}°C</span>
                             </div>
                           </div>
                         ))}
+                        </div>
+                        {group.others.length > 10 && (
+                          <div className="flex justify-center items-center space-x-4 mt-2">
+                            <button onClick={() => handleGroupPageChange(group.groupName, -1)} disabled={(groupPages[group.groupName] || 1) === 1} className="p-1 rounded bg-bg-panel disabled:opacity-30"><ChevronLeft size={16}/></button>
+                            <span className="text-xs text-text-secondary">Page {groupPages[group.groupName] || 1} of {Math.ceil(group.others.length / 10)}</span>
+                            <button onClick={() => handleGroupPageChange(group.groupName, 1)} disabled={(groupPages[group.groupName] || 1) === Math.ceil(group.others.length / 10)} className="p-1 rounded bg-bg-panel disabled:opacity-30"><ChevronRight size={16}/></button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -160,29 +185,49 @@ export default function DataModal({ onClose, areas, setSelectedSegment }: DataMo
 
         {/* FLAT TABLE VIEW */}
         {viewMode === 'table' && (
-          <div className="overflow-auto flex-1 custom-scrollbar">
+          <div className="flex flex-col flex-1 overflow-hidden">
+          <div className="overflow-auto flex-1 custom-scrollbar mb-2">
             <table className="w-full text-left border-collapse">
               <thead className="bg-bg-surface sticky top-0 z-10 shadow-md">
                 <tr>
                   <th className="py-4 px-6 text-text-secondary font-bold uppercase text-xs tracking-wider border-b border-border">Group</th>
                   <th className="py-4 px-6 text-text-secondary font-bold uppercase text-xs tracking-wider border-b border-border">Area Name</th>
                   <th className="py-4 px-6 text-text-secondary font-bold uppercase text-xs tracking-wider border-b border-border">Distance</th>
-                  <th className="py-4 px-6 text-text-secondary font-bold uppercase text-xs tracking-wider border-b border-border">Temp</th>
+                  <th className="py-4 px-6 text-text-secondary font-bold uppercase text-xs tracking-wider border-b border-border">Avg Temp</th>
+                  <th className="py-4 px-6 text-text-secondary font-bold uppercase text-xs tracking-wider border-b border-border">Min Temp</th>
+                  <th className="py-4 px-6 text-text-secondary font-bold uppercase text-xs tracking-wider border-b border-border">Max Temp</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {areas.map((area) => (
+                {areas.slice((tablePage - 1) * 10, tablePage * 10).map((area) => (
                   <tr key={area.id} onClick={() => { setSelectedSegment(area); onClose(); }} className="cursor-pointer hover:bg-white/[0.02] transition-colors">
                     <td className="py-3 px-6 font-bold text-text-secondary text-sm">{area.mainGroup === 'Unassigned' ? 'Not Set' : area.mainGroup}</td>
                     <td className="py-3 px-6 font-bold text-text-primary">{area.name}</td>
                     <td className="py-3 px-6 font-mono text-text-secondary">{area.distance}</td>
                     <td className={`py-3 px-6 font-mono font-bold ${area.isAlarm ? 'text-red-400' : 'text-scada-success'}`}>
-                      {area.temp}°C
+                      {area.temp_avg ?? area.temp}°C
+                    </td>
+                    <td className="py-3 px-6 font-mono text-blue-400">
+                      {area.temp_min ?? '-'}°C
+                    </td>
+                    <td className="py-3 px-6 font-mono text-red-400">
+                      {area.temp_max ?? '-'}°C
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+          {/* Table Pagination */}
+          {areas.length > 10 && (
+            <div className="flex justify-between items-center px-6 py-3 bg-bg-surface border-t border-border">
+              <span className="text-xs text-text-secondary">Showing {(tablePage - 1) * 10 + 1} to {Math.min(tablePage * 10, areas.length)} of {areas.length} entries</span>
+              <div className="flex space-x-2">
+                <button onClick={() => setTablePage(p => p - 1)} disabled={tablePage === 1} className="px-3 py-1 bg-bg-panel rounded border border-border text-xs disabled:opacity-50 hover:bg-bg-surface transition-colors">Previous</button>
+                <button onClick={() => setTablePage(p => p + 1)} disabled={tablePage === Math.ceil(areas.length / 10)} className="px-3 py-1 bg-bg-panel rounded border border-border text-xs disabled:opacity-50 hover:bg-bg-surface transition-colors">Next</button>
+              </div>
+            </div>
+          )}
           </div>
         )}
 

@@ -1,0 +1,74 @@
+--- src/pages/Dashboard.tsx
++++ src/pages/Dashboard.tsx
+@@ -14,13 +14,18 @@
+ import { getCurrentWindow } from '@tauri-apps/api/window';
+ import { invoke } from '@tauri-apps/api/core';
+ 
+-interface SegmentMapping {
++interface LiveSegment {
+   id: number;
+   dts_ch: number;
+   dts_code: number;
+   original_name: string;
+   custom_name: string | null;
+   main_group: string;
+   sub_group: string | null;
+   start_m?: number | null;
+   end_m?: number | null;
++  temp_avg: number;
++  temp_min: number;
++  temp_max: number;
++  temp_min_p: number;
++  temp_max_p: number;
+ }
+ 
+ export default function Dashboard() {
+@@ -35,7 +40,7 @@
+   const [searchTerm, setSearchTerm] = useState('');
+   const [userRole, setUserRole] = useState('GUEST');
+   const [userId, setUserId] = useState('');
+-  const [mappings, setMappings] = useState<SegmentMapping[]>([]);
++  const [mappings, setMappings] = useState<LiveSegment[]>([]);
+ 
+   const [selectedSegment, setSelectedSegment] = useState<SegmentData | null>(null);
+   const [showDataModal, setShowDataModal] = useState(false);
+@@ -53,10 +58,16 @@
+ 
+   useEffect(() => {
+     if ('__TAURI_INTERNALS__' in window) {
+-      import('@tauri-apps/api/core').then(({ invoke }) => {
+-        invoke<SegmentMapping[]>('get_segment_mappings')
+-          .then(setMappings)
+-          .catch(err => console.error("Failed to load mappings", err));
+-      });
++      const fetchLive = () => {
++        import('@tauri-apps/api/core').then(({ invoke }) => {
++          invoke<LiveSegment[]>('get_live_segments')
++            .then(setMappings)
++            .catch(err => console.error("Failed to load live segments", err));
++        });
++      };
++      
++      fetchLive(); // initial fetch
++      const interval = setInterval(fetchLive, 5000); // Poll every 5 seconds
++      return () => clearInterval(interval);
+     }
+   }, []);
+@@ -111,10 +122,14 @@
+ 
+   const baseAreas: (SegmentData & { mainGroup: string; subGroup: string | null })[] = mappings.length > 0 
+     ? mappings.map(m => ({
+-        id: `m-${m.id}`,
++        id: m.id,
+         name: m.custom_name || m.original_name,
+         distance: m.start_m != null && m.end_m != null ? `${m.start_m}m - ${m.end_m}m` : `CH${m.dts_ch}-C${m.dts_code}`,
+-        temp: String(35 + Math.floor(Math.random() * 5)), // string temp
++        temp: m.temp_avg,
++        temp_avg: m.temp_avg,
++        temp_min: m.temp_min,
++        temp_max: m.temp_max,
++        temp_min_p: m.temp_min_p,
++        temp_max_p: m.temp_max_p,
+         isAlarm: false,
+         mainGroup: m.main_group,
+         subGroup: m.sub_group,

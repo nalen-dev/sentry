@@ -15,7 +15,7 @@ import { DUMMY_AREAS, DUMMY_LOGS, DUMMY_CHART_DATA } from '../data/constants';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 
-interface SegmentMapping {
+interface LiveSegment {
   id: number;
   dts_ch: number;
   dts_code: number;
@@ -25,6 +25,11 @@ interface SegmentMapping {
   sub_group: string | null;
   start_m?: number | null;
   end_m?: number | null;
+  temp_avg: number;
+  temp_min: number;
+  temp_max: number;
+  temp_min_p: number;
+  temp_max_p: number;
 }
 
 export default function Dashboard() {
@@ -40,24 +45,32 @@ export default function Dashboard() {
   const [userRole, setUserRole] = useState('OPERATOR');
   const [userId, setUserId] = useState('OP-7729');
 
-  const [mappings, setMappings] = useState<SegmentMapping[]>([]);
+  const [mappings, setMappings] = useState<LiveSegment[]>([]);
   const [activeMainGroup, setActiveMainGroup] = useState<string>('All');
   const [activeSubGroup, setActiveSubGroup] = useState<string>('All');
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
   const [selectedSegment, setSelectedSegment] = useState<SegmentData | null>(null);
   
   const [showDataModal, setShowDataModal] = useState(false);
 
+  // Pagination for Left Panel
+  const itemsPerPage = 7;
+  const [currentPage, setCurrentPage] = useState(1);
+
   useEffect(() => {
     if ('__TAURI_INTERNALS__' in window) {
-      import('@tauri-apps/api/core').then(({ invoke }) => {
-        invoke<SegmentMapping[]>('get_segment_mappings')
-          .then(setMappings)
-          .catch(err => console.error("Failed to load mappings", err));
-      });
+      const fetchLive = () => {
+        import('@tauri-apps/api/core').then(({ invoke }) => {
+          invoke<LiveSegment[]>('get_live_segments')
+            .then(setMappings)
+            .catch(err => console.error("Failed to load live segments", err));
+        });
+      };
+      
+      fetchLive(); // initial fetch
+      const interval = setInterval(fetchLive, 5000); // Poll every 5 seconds
+      return () => clearInterval(interval);
     }
   }, []);
 
@@ -112,11 +125,16 @@ export default function Dashboard() {
 
   const baseAreas: (SegmentData & { mainGroup: string; subGroup: string | null })[] = mappings.length > 0 
     ? mappings.map(m => ({
-        id: `m-${m.id}`,
+        id: m.id,
         name: m.custom_name || m.original_name,
         distance: m.start_m != null && m.end_m != null ? `${m.start_m}m - ${m.end_m}m` : `CH${m.dts_ch}-C${m.dts_code}`,
-        temp: String(35 + Math.floor(Math.random() * 5)), // string temp
-        isAlarm: false,
+        temp: m.temp_avg,
+        temp_avg: m.temp_avg,
+        temp_min: m.temp_min,
+        temp_max: m.temp_max,
+        temp_min_p: m.temp_min_p,
+        temp_max_p: m.temp_max_p,
+        isAlarm: false, status: 'Normal',
         mainGroup: m.main_group,
         subGroup: m.sub_group,
         mappingId: m.id,
@@ -285,7 +303,7 @@ export default function Dashboard() {
           <SegmentDetailModal 
             segment={selectedSegment} 
             onClose={() => setSelectedSegment(null)} 
-            userRole={userRole}
+            isAdmin={userRole === 'ADMINISTRATOR'}
             onRename={async (id, newName) => {
               try {
                 const targetMapping = mappings.find(m => m.id === id);
@@ -297,7 +315,7 @@ export default function Dashboard() {
                     subGroup: targetMapping.sub_group 
                   });
                   // Refetch mappings
-                  const updated: SegmentMapping[] = await invoke('get_segment_mappings');
+                  const updated: LiveSegment[] = await invoke('get_segment_mappings');
                   setMappings(updated);
                   // Update selected segment so it doesn't revert if modal stays open
                   setSelectedSegment(prev => prev ? { ...prev, name: newName } : null);

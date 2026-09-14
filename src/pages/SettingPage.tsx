@@ -91,6 +91,8 @@ export default function SettingPage() {
   };
 
   const handleSyncDts = async () => {
+    const confirmSync = window.confirm("WARNING: Syncing will wipe all existing segment groups and aliases, replacing them with fresh data from active DTS channels. Continue?");
+    if (!confirmSync) return;
     try {
       const res: any = await invoke('sync_dts_segments');
       showToast(`Sync Complete! Found ${res.total_found} segments. Added ${res.new_added} new segments to local mapping.`, "success");

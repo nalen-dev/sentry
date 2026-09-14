@@ -2,10 +2,10 @@ import { SegmentData } from '../components/SegmentDetailModal';
 
 // Dummy area data based on request (increased to 42 for pagination testing)
 export const DUMMY_AREAS: SegmentData[] = Array.from({ length: 42 }, (_, i) => ({
-  id: `A-${i + 1}`,
+  id: i + 1,
   name: `Segment ${i + 1}`,
   distance: `${(i + 1) * 150}m`,
-  temp: (30 + Math.random() * 20).toFixed(1),
+  temp: 35, status: "Normal",
   isAlarm: Math.random() > 0.95, // 5% chance of alarm
   group: i < 10 ? 'BC Main-01' : i < 20 ? 'BC Main-02' : i < 30 ? 'Top Feeders' : 'Bottom Feeders',
   areaLocation: `Zone ${String.fromCharCode(65 + (i % 5))}`, // Zone A, B, C...

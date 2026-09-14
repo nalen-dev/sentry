@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { List, X, Grid, AlertTriangle, Map as MapIcon, Layout, Maximize2, Minimize2 } from 'lucide-react';
+import { Map as MapIcon, Layout, Maximize2, Minimize2 } from 'lucide-react';
 import SegmentDetailModal, { SegmentData } from '../components/SegmentDetailModal';
 
 // Components
@@ -9,6 +9,7 @@ import TopNavbar from '../components/layout/TopNavbar';
 import LogPanel from '../features/dashboard/LogPanel';
 import LeftPanel from '../features/dashboard/LeftPanel';
 import RightPanel from '../features/dashboard/RightPanel';
+import DataModal from '../features/dashboard/DataModal';
 import { DUMMY_AREAS, DUMMY_LOGS, DUMMY_CHART_DATA } from '../data/constants';
 
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -22,6 +23,8 @@ interface SegmentMapping {
   custom_name: string | null;
   main_group: string;
   sub_group: string | null;
+  start_m?: number | null;
+  end_m?: number | null;
 }
 
 export default function Dashboard() {
@@ -47,7 +50,6 @@ export default function Dashboard() {
   const [selectedSegment, setSelectedSegment] = useState<SegmentData | null>(null);
   
   const [showDataModal, setShowDataModal] = useState(false);
-  const [modalViewMode, setModalViewMode] = useState<'grid' | 'table'>('grid');
 
   useEffect(() => {
     if ('__TAURI_INTERNALS__' in window) {
@@ -271,121 +273,11 @@ export default function Dashboard() {
 
         {/* FULLSCREEN DATA MODAL */}
         {showDataModal && (
-          <div className="absolute inset-0 z-50 flex flex-col bg-bg-base/95 backdrop-blur-md p-8 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center">
-                <List className="text-scada-primary mr-3" size={28} />
-                <div>
-                  <h2 className="text-text-primary font-bold tracking-widest text-2xl uppercase">COMPLETE SEGMENT DATA</h2>
-                  <p className="text-text-secondary font-mono text-sm">ALL DTS SEGMENTS MONITORING</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <div className="flex bg-bg-panel/50 p-1 rounded-lg border border-border">
-                  <button
-                    onClick={() => setModalViewMode('grid')}
-                    className={`p-2 rounded-md flex items-center transition-all ${modalViewMode === 'grid' ? 'bg-bg-surface text-text-primary shadow-sm border border-border' : 'text-text-secondary hover:text-text-primary border border-transparent'}`}
-                    title="Grid View"
-                  >
-                    <Grid size={18} />
-                  </button>
-                  <button
-                    onClick={() => setModalViewMode('table')}
-                    className={`p-2 rounded-md flex items-center transition-all ${modalViewMode === 'table' ? 'bg-bg-surface text-text-primary shadow-sm border border-border' : 'text-text-secondary hover:text-text-primary border border-transparent'}`}
-                    title="Table View"
-                  >
-                    <List size={18} />
-                  </button>
-                </div>
-
-                <button 
-                  onClick={() => setShowDataModal(false)}
-                  className="p-3 bg-red-500/10 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors border border-red-500/30"
-                  title="Close"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 bg-bg-panel border border-border rounded-xl overflow-hidden flex flex-col shadow-2xl relative">
-              
-              {/* TABLE VIEW */}
-              {modalViewMode === 'table' && (
-                <div className="overflow-auto flex-1 custom-scrollbar">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="bg-bg-surface sticky top-0 z-10 shadow-md">
-                      <tr>
-                        <th className="py-4 px-6 text-text-secondary font-bold uppercase text-xs tracking-wider border-b border-border">Segment ID</th>
-                        <th className="py-4 px-6 text-text-secondary font-bold uppercase text-xs tracking-wider border-b border-border">Area Name</th>
-                        <th className="py-4 px-6 text-text-secondary font-bold uppercase text-xs tracking-wider border-b border-border">Distance (Meter)</th>
-                        <th className="py-4 px-6 text-text-secondary font-bold uppercase text-xs tracking-wider border-b border-border">Current Temp</th>
-                        <th className="py-4 px-6 text-text-secondary font-bold uppercase text-xs tracking-wider border-b border-border text-center">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {filteredAreas.map((area, idx) => (
-                        <tr key={area.id} onClick={() => setSelectedSegment(area)} className={`cursor-pointer hover:bg-white/[0.02] transition-colors ${area.isAlarm ? 'bg-red-950/20' : ''}`}>
-                          <td className="py-3 px-6 font-mono text-text-secondary text-sm">#{String(idx + 1).padStart(3, '0')}</td>
-                          <td className="py-3 px-6 font-bold text-text-primary">{area.name}</td>
-                          <td className="py-3 px-6 font-mono text-text-secondary">{area.distance}</td>
-                          <td className={`py-3 px-6 font-mono font-bold ${area.isAlarm ? 'text-red-400' : 'text-scada-success'}`}>
-                            {area.temp}°C
-                          </td>
-                          <td className="py-3 px-6 text-center">
-                            {area.isAlarm ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30 shadow-[0_0_10px_rgba(240,71,71,0.3)]">
-                                <AlertTriangle size={12} className="mr-1 animate-pulse" /> ALARM
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-500/10 text-scada-success border border-green-500/20">
-                                NORMAL
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* GRID VIEW */}
-              {modalViewMode === 'grid' && (
-                <div className="overflow-y-auto flex-1 custom-scrollbar p-6">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
-                    {filteredAreas.map(area => (
-                      <div 
-                        key={area.id} 
-                        onClick={() => setSelectedSegment(area)}
-                        className={`p-4 rounded-xl flex flex-col cursor-pointer transition-all hover:scale-105 shadow-xl backdrop-blur-sm border
-                          ${area.isAlarm 
-                            ? 'bg-bg-alarm border-red-500/50 shadow-[0_0_15px_rgba(240,71,71,0.3)]' 
-                            : 'bg-bg-surface/80 border-border hover:bg-bg-surface'}`}
-                      >
-                        <div className="flex justify-between items-start mb-4">
-                          <span className={`font-bold text-sm drop-shadow-md ${area.isAlarm ? 'text-red-400' : 'text-text-primary'}`}>
-                            {area.name}
-                          </span>
-                          {area.isAlarm && <AlertTriangle size={14} className="text-red-500 animate-pulse" />}
-                        </div>
-                        <div className="flex justify-between items-end mt-auto">
-                          <span className="text-xs font-semibold text-text-secondary drop-shadow-md">
-                            {area.distance}
-                          </span>
-                          <span className={`text-base font-mono font-bold drop-shadow-md ${area.isAlarm ? 'text-red-400' : 'text-scada-success'}`}>
-                            {area.temp}°C
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-            </div>
-          </div>
+          <DataModal 
+            onClose={() => setShowDataModal(false)}
+            areas={baseAreas}
+            setSelectedSegment={setSelectedSegment}
+          />
         )}
 
         {/* SEGMENT DETAIL MODAL */}

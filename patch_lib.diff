@@ -1,0 +1,73 @@
+--- src-tauri/src/lib.rs
++++ src-tauri/src/lib.rs
+@@ -194,6 +194,69 @@
+     Ok(rows)
+ }
+ 
++#[derive(serde::Serialize)]
++pub struct LiveSegment {
++    pub id: i32,
++    pub dts_ch: i32,
++    pub dts_code: i32,
++    pub original_name: String,
++    pub custom_name: Option<String>,
++    pub main_group: String,
++    pub sub_group: Option<String>,
++    pub start_m: Option<i32>,
++    pub end_m: Option<i32>,
++    pub temp_avg: f32,
++    pub temp_min: f32,
++    pub temp_max: f32,
++    pub temp_min_p: i32,
++    pub temp_max_p: i32,
++}
++
++#[tauri::command]
++async fn get_live_segments(state: tauri::State<'_, SqlitePool>) -> Result<Vec<LiveSegment>, String> {
++    // Get local mappings
++    let mappings = get_segment_mappings(state.clone()).await?;
++    
++    // Connect to MySQL
++    let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
++        .fetch_all(&*state)
++        .await
++        .map_err(|e| e.to_string())?;
++        
++    let mut db_host = String::from("192.168.1.64");
++    let mut db_port = String::from("58329");
++    let mut db_user = String::from("root");
++    let mut db_pass = String::from("l0mY4cH9H?h9");
++    let mut db_name = String::from("dtscontroler");
++    for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
++    
++    let port_num = db_port.parse::<u16>().unwrap_or(3306);
++    let options = sqlx::mysql::MySqlConnectOptions::new().host(&db_host).port(port_num).username(&db_user).password(&db_pass).database(&db_name);
++    
++    let mysql_pool = sqlx::mysql::MySqlPoolOptions::new().max_connections(1).acquire_timeout(std::time::Duration::from_secs(3)).connect_with(options).await.map_err(|e| format!("MySQL Connection Failed: {}", e))?;
++    
++    #[derive(sqlx::FromRow)]
++    struct LiveRow { ch: i32, code: i32, temp_avg: Option<i32>, temp_min: Option<i32>, temp_max: Option<i32>, temp_min_p: Option<i32>, temp_max_p: Option<i32> }
++    
++    let live_data: Vec<LiveRow> = sqlx::query_as("SELECT Ch as ch, Code as code, TempAvg as temp_avg, TempMin as temp_min, TempMax as temp_max, TempMinP as temp_min_p, TempMaxP as temp_max_p FROM opt_fq_list")
++        .fetch_all(&mysql_pool)
++        .await
++        .map_err(|e| format!("MySQL Fetch Failed: {}", e))?;
++        
++    let mut results = Vec::new();
++    for map in mappings {
++        let live = live_data.iter().find(|l| l.ch == map.dts_ch && l.code == map.dts_code);
++        if let Some(l) = live {
++            let temp_avg = l.temp_avg.unwrap_or(0) as f32 / 10.0;
++            let temp_min = l.temp_min.unwrap_or(0) as f32 / 10.0;
++            let temp_max = l.temp_max.unwrap_or(0) as f32 / 10.0;
++            let temp_min_p = l.temp_min_p.unwrap_or(0);
++            let temp_max_p = l.temp_max_p.unwrap_or(0);
++            
++            results.push(LiveSegment { id: map.id.unwrap_or(0), dts_ch: map.dts_ch, dts_code: map.dts_code, original_name: map.original_name, custom_name: map.custom_name, main_group: map.main_group, sub_group: map.sub_group, start_m: map.start_m, end_m: map.end_m, temp_avg, temp_min, temp_max, temp_min_p, temp_max_p });
++        }
++    }
++    Ok(results)
++}
++
+ #[tauri::command]
+ async fn update_segment_mapping(

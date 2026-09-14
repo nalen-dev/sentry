@@ -1,90 +1,97 @@
 import { useState } from 'react';
-import { X, Image as ImageIcon, Camera, Save, Activity, MapPin, AlignLeft, Info, Thermometer, AlertTriangle } from 'lucide-react';
+import { X, Image as ImageIcon, Camera, Save, Activity, MapPin, AlignLeft, Info, Thermometer, AlertTriangle, Check, Edit2 } from 'lucide-react';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 
 export interface SegmentData {
-  id: string;
+  id: number;
   name: string;
+  original_name?: string;
+  status: string;
+  temp: number;
   distance: string;
-  temp: string;
   isAlarm: boolean;
   group?: string;
   areaLocation?: string;
-  notes?: string;
   photoUrl?: string;
-  // new mapping fields
-  mappingId?: number;
-  original_name?: string;
+  temp_avg?: number;
+  temp_min?: number;
+  temp_max?: number;
+  temp_min_p?: number;
+  temp_max_p?: number;
+  notes?: string;
 }
 
 interface SegmentDetailModalProps {
   segment: SegmentData;
   onClose: () => void;
-  userRole?: string;
+  isAdmin: boolean;
   onRename?: (id: number, newName: string) => void;
 }
 
-type Props = SegmentDetailModalProps;
-
-export default function SegmentDetailModal({ segment, onClose, userRole, onRename }: Props) {
-  const isAdmin = userRole === 'ADMINISTRATOR';
+export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename }: SegmentDetailModalProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(segment.name);
   const [notes, setNotes] = useState(segment.notes || '');
-  const [name, setName] = useState(segment.name);
-  const [isEditingName, setIsEditingName] = useState(false);
 
-  // Dummy Chart Data for the modal
-  const dummyChartData = [
-    { time: '13:00', temp: parseFloat(segment.temp) - 5 },
-    { time: '13:10', temp: parseFloat(segment.temp) - 2 },
-    { time: '13:20', temp: parseFloat(segment.temp) + 1 },
-    { time: '13:30', temp: parseFloat(segment.temp) - 1 },
-    { time: '13:40', temp: parseFloat(segment.temp) + 4 },
-    { time: '13:50', temp: parseFloat(segment.temp) },
+  const handleSaveRename = () => {
+    if (onRename && editName.trim() !== '') {
+      onRename(segment.id, editName);
+    }
+    setIsEditing(false);
+  };
+
+  const relatedLogs = [
+    { id: 1, time: '14:22:00', msg: 'System check normal', type: 'info' },
+    { id: 2, time: '12:05:11', msg: 'Slight temp increase detected', type: 'warn' },
+    { id: 3, time: '09:00:00', msg: 'Daily reset initiated', type: 'info' },
   ];
 
-  // Dummy Related Logs
-  const relatedLogs = [
-    { id: 1, time: '13:45', msg: `Temperature spike detected in ${segment.name}`, type: segment.isAlarm ? 'error' : 'warn' },
-    { id: 2, time: '13:30', msg: `Routine sweep completed for ${segment.group || 'BC Main-01'}`, type: 'info' },
-    { id: 3, time: '12:00', msg: `Calibration adjusted for area ${segment.areaLocation || 'Tunnel A'}`, type: 'info' },
+  const dummyChartData = [
+    { time: '13:00', temp: segment.temp - 2 },
+    { time: '13:10', temp: segment.temp - 1.5 },
+    { time: '13:20', temp: segment.temp - 1 },
+    { time: '13:30', temp: segment.temp - 0.5 },
+    { time: '13:40', temp: segment.temp + 1 },
+    { time: '13:50', temp: segment.temp + 0.5 },
+    { time: '14:00', temp: segment.temp },
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-6xl h-[85vh] bg-bg-panel border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-bg-panel/80 backdrop-blur-sm" onClick={onClose}></div>
+      
+      {/* Modal Container */}
+      <div className="relative w-full max-w-5xl h-[80vh] bg-bg-surface border border-border rounded-2xl shadow-2xl flex flex-col animate-in zoom-in-95 duration-200">
         
         {/* HEADER */}
-        <div className="flex justify-between items-start p-6 border-b border-border bg-bg-surface/50">
-          <div className="flex items-center">
-            <div className={`p-4 rounded-xl mr-5 shadow-inner border ${segment.isAlarm ? 'bg-bg-alarm border-red-500/50' : 'bg-bg-base border-border'}`}>
-              <AlertTriangle size={32} className={`${segment.isAlarm ? 'text-red-500 animate-pulse' : 'text-scada-primary'}`} />
+        <div className="flex justify-between items-start p-6 border-b border-border bg-bg-panel rounded-t-2xl">
+          <div className="flex items-start space-x-4">
+            <div className={`p-3 rounded-xl mt-1 ${segment.isAlarm ? 'bg-red-500/20 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-scada-primary/20 text-scada-primary'}`}>
+              <AlertTriangle size={28} />
             </div>
             <div>
-              {isEditingName && isAdmin ? (
+              {isEditing ? (
                 <div className="flex items-center space-x-2">
                   <input 
                     type="text" 
-                    value={name} 
-                    onChange={e => setName(e.target.value)}
-                    className="bg-bg-base border border-scada-primary rounded px-2 py-1 text-2xl font-bold text-text-primary focus:outline-none"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="bg-bg-base border border-scada-primary rounded-lg px-3 py-1.5 text-2xl font-bold text-text-primary focus:outline-none w-64"
                     autoFocus
                   />
-                  <button 
-                    onClick={() => {
-                      setIsEditingName(false);
-                      if (onRename && segment.mappingId) onRename(segment.mappingId, name);
-                    }}
-                    className="p-2 bg-scada-primary/20 text-scada-primary rounded hover:bg-scada-primary hover:text-white transition-colors"
-                  >
-                    <Save size={18} />
-                  </button>
+                  <button onClick={handleSaveRename} className="p-2 text-scada-success hover:bg-bg-base rounded-lg"><Check size={20} /></button>
+                  <button onClick={() => setIsEditing(false)} className="p-2 text-red-400 hover:bg-bg-base rounded-lg"><X size={20} /></button>
                 </div>
               ) : (
-                <h2 className="text-2xl font-bold text-text-primary tracking-wider flex items-center">
-                  {name}
+                <h2 className="text-3xl font-bold text-text-primary flex items-center group">
+                  {segment.name}
                   {isAdmin && (
-                    <button onClick={() => setIsEditingName(true)} className="ml-3 text-text-secondary hover:text-scada-primary text-sm transition-colors uppercase tracking-widest bg-bg-base px-2 py-1 rounded border border-border">
-                      Rename
+                    <button 
+                      onClick={() => setIsEditing(true)}
+                      className="ml-3 p-1.5 text-text-secondary opacity-0 group-hover:opacity-100 hover:text-scada-primary hover:bg-bg-base rounded-md transition-all"
+                    >
+                      <Edit2 size={16} />
                     </button>
                   )}
                 </h2>
@@ -112,19 +119,32 @@ export default function SegmentDetailModal({ segment, onClose, userRole, onRenam
             <div className="p-6 border-b border-border space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><MapPin size={14} className="mr-2" /> Distance</span>
-                <span className="font-mono text-text-primary">{segment.distance} to Ops Room</span>
+                <span className="font-mono text-text-primary">{segment.distance}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><AlignLeft size={14} className="mr-2" /> Group</span>
                 <span className="font-mono text-text-primary">{segment.group || 'BC MAIN - 01'}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><MapPin size={14} className="mr-2" /> Area</span>
-                <span className="font-mono text-text-primary">{segment.areaLocation || 'Zone Alpha'}</span>
-              </div>
-              <div className="flex items-center justify-between pt-4 border-t border-border/50">
-                <span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><Thermometer size={14} className="mr-2" /> Current Temp</span>
-                <span className={`text-2xl font-mono font-bold ${segment.isAlarm ? 'text-red-400' : 'text-scada-success'}`}>{segment.temp}°C</span>
+              
+              <div className="pt-4 border-t border-border/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><Thermometer size={14} className="mr-2" /> Max Temp</span>
+                  <div className="text-right">
+                    <span className="text-red-400 font-mono font-bold">{segment.temp_max ?? '-'}°C</span>
+                    <p className="text-[10px] text-text-secondary font-mono">at {segment.temp_max_p ?? '-'}m</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><Thermometer size={14} className="mr-2" /> Min Temp</span>
+                  <div className="text-right">
+                    <span className="text-blue-400 font-mono font-bold">{segment.temp_min ?? '-'}°C</span>
+                    <p className="text-[10px] text-text-secondary font-mono">at {segment.temp_min_p ?? '-'}m</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><Thermometer size={14} className="mr-2" /> Avg Temp</span>
+                  <span className="text-scada-primary font-mono font-bold text-lg">{segment.temp_avg ?? segment.temp}°C</span>
+                </div>
               </div>
             </div>
 

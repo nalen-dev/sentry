@@ -1,46 +1,11 @@
 --- src/pages/SettingPage.tsx
 +++ src/pages/SettingPage.tsx
-@@ -9,6 +9,7 @@
-   RotateCcw,
-   Link2
- } from 'lucide-react';
-+import MappingGrid, { SegmentMapping } from '../components/MappingGrid';
- 
- import { invoke } from '@tauri-apps/api/core';
- 
-@@ -21,16 +22,6 @@
-   status: string;
- }
- 
--interface SegmentMapping {
--  id: number;
--  dts_ch: number;
--  dts_code: number;
--  original_name: string;
--  custom_name: string | null;
--  main_group: string;
--  sub_group: string | null;
--}
--
- export default function SettingPage() {
-   const [isDarkMode, setIsDarkMode] = useState(() => {
-     const saved = localStorage.getItem('theme');
-@@ -107,6 +98,17 @@
-     }
+@@ -79,6 +79,8 @@
    };
  
-+  const handleUpdateBulkMapping = async (ids: number[], customName: string | null, mainGroup: string, subGroup: string | null) => {
-+    for (const id of ids) {
-+      await invoke('update_segment_mapping', {
-+        id,
-+        customName: customName, // only applied if customName is provided (single select)
-+        mainGroup,
-+        subGroup
-+      });
-+    }
-+    handleLoadMappings();
-+  };
-+
-   const handleUpdateMapping = async (id: number, customName: string | null, mainGroup: string, subGroup: string | null) => {
+   const handleSyncDts = async () => {
++    const confirmSync = window.confirm("WARNING: Syncing will wipe all existing segment groups and aliases, replacing them with fresh data from active DTS channels. Continue?");
++    if (!confirmSync) return;
      try {
-       await invoke('update_segment_mapping', {
+       const res: any = await invoke('sync_dts_segments');
+       showToast(`Sync Complete! Found ${res.total_found} segments. Added ${res.new_added} new segments to local mapping.`, "success");
