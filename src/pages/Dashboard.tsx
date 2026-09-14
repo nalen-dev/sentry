@@ -10,7 +10,7 @@ import LogPanel from '../features/dashboard/LogPanel';
 import LeftPanel from '../features/dashboard/LeftPanel';
 import RightPanel from '../features/dashboard/RightPanel';
 import DataModal from '../features/dashboard/DataModal';
-import { DUMMY_AREAS, DUMMY_CHART_DATA } from '../data/constants';
+import { DUMMY_AREAS} from '../data/constants';
 
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
@@ -298,7 +298,7 @@ export default function Dashboard() {
               normalSegments={normalSegments}
               warningSegments={warningSegments}
               dangerSegments={dangerSegments}
-              dummyChartData={DUMMY_CHART_DATA}
+              filteredAreas={filteredAreas}
             />
           )}
         </aside>

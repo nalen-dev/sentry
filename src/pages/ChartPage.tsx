@@ -2,32 +2,9 @@ import { useState, useEffect } from 'react';
 import { LineChart as LineChartIcon, Filter, Download, Activity, Thermometer, AlertTriangle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import TopNavbar from '../components/layout/TopNavbar';
+import { invoke } from '@tauri-apps/api/core';
 
-// Generate some rich dummy data for the chart (24 hours)
-const generateHistoricalData = () => {
-  const data = [];
-  const now = new Date();
-  now.setMinutes(0, 0, 0); // Start at top of hour
-
-  for (let i = 24; i >= 0; i--) {
-    const time = new Date(now.getTime() - i * 60 * 60 * 1000);
-    const hourStr = time.getHours().toString().padStart(2, '0') + ':00';
-    
-    // Simulate day/night temperature curves
-    const baseTemp = 40 + Math.sin((time.getHours() / 24) * Math.PI * 2) * 10;
-    
-    data.push({
-      time: hourStr,
-      'TN BEK 3': Number((baseTemp + Math.random() * 5).toFixed(1)),
-      'TN BEK 4': Number((baseTemp + 2 + Math.random() * 6).toFixed(1)),
-      'TN TCM 1': Number((baseTemp - 5 + Math.random() * 4).toFixed(1)),
-      'BC MAIN 01': Number((baseTemp + 15 + Math.random() * 10).toFixed(1)), // Hotter belt
-    });
-  }
-  return data;
-};
-
-const CHART_DATA = generateHistoricalData();
+const COLORS = ['#06b6d4', '#eab308', '#ef4444', '#10b981', '#a855f7'];
 
 export default function ChartPage() {
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -36,7 +13,12 @@ export default function ChartPage() {
   });
   const [userRole, setUserRole] = useState('OPERATOR');
   const [userId, setUserId] = useState('OP-7729');
-  const [selectedTimeRange, setSelectedTimeRange] = useState('24h');
+  const [selectedTimeRange, setSelectedTimeRange] = useState('30m'); 
+  
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [lines, setLines] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ max: 0, avg: 0, min: 0 });
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
@@ -49,6 +31,74 @@ export default function ChartPage() {
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
     document.documentElement.className = isDarkMode ? 'dark' : 'light';
   }, [isDarkMode]);
+
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchData = async () => {
+      if (!('__TAURI_INTERNALS__' in window)) return;
+      
+      try {
+        setLoading(true);
+        // Fetch active mappings
+        const mappings: any[] = await invoke('get_live_segments');
+        
+        if (!mappings || mappings.length === 0) {
+          if (isMounted) setLoading(false);
+          return;
+        }
+
+        // Take top 5 hottest segments
+        const top5 = [...mappings].sort((a: any, b: any) => (b.temp_avg || 0) - (a.temp_avg || 0)).slice(0, 5);
+        const names = top5.map((m: any) => m.custom_name || m.original_name || `CH${m.dts_ch}-C${m.dts_code}`);
+        if (isMounted) setLines(names);
+        
+        const limit = selectedTimeRange === '30m' ? 30 : selectedTimeRange === '1h' ? 60 : selectedTimeRange === '6h' ? 360 : 30;
+        
+        // Fetch history for each
+        const histories = await Promise.all(
+          top5.map((m: any) => invoke<any[]>('get_segment_history', { dtsCh: m.dts_ch, dtsCode: m.dts_code, limit }))
+        );
+        
+        // Merge by time
+        const mergedMap: Record<string, any> = {};
+        histories.forEach((hist, idx) => {
+          const segName = names[idx];
+          hist.forEach(pt => {
+            if (!mergedMap[pt.time]) mergedMap[pt.time] = { time: pt.time };
+            mergedMap[pt.time][segName] = pt.temp;
+          });
+        });
+        
+        const finalData = Object.values(mergedMap).sort((a: any, b: any) => a.time.localeCompare(b.time));
+        
+        if (isMounted) {
+          setChartData(finalData);
+          
+          let max = -999, min = 999, sum = 0, count = 0;
+          finalData.forEach(row => {
+            names.forEach(n => {
+              if (row[n] !== undefined) {
+                if (row[n] > max) max = row[n];
+                if (row[n] < min) min = row[n];
+                sum += row[n];
+                count++;
+              }
+            });
+          });
+          setStats({ max: max === -999 ? 0 : max, min: min === 999 ? 0 : min, avg: count ? sum / count : 0 });
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error(err);
+        if (isMounted) setLoading(false);
+      }
+    };
+    
+    fetchData();
+    const interval = setInterval(fetchData, 10000); 
+    return () => { isMounted = false; clearInterval(interval); };
+  }, [selectedTimeRange]);
 
   return (
     <div className="flex flex-col h-screen bg-bg-base text-text-primary overflow-hidden font-sans">
@@ -68,12 +118,12 @@ export default function ChartPage() {
               <LineChartIcon className="mr-3 text-scada-primary" size={28} /> 
               HISTORICAL TREND ANALYSIS
             </h2>
-            <p className="text-text-secondary font-mono mt-1">Detailed temperature analysis across all DTS segments</p>
+            <p className="text-text-secondary font-mono mt-1">Showing top 5 hottest active segments</p>
           </div>
 
           <div className="flex space-x-3">
             <div className="flex bg-bg-panel border border-border rounded-lg overflow-hidden shadow-sm">
-              {['1h', '6h', '24h', '7d', '30d'].map(range => (
+              {['30m', '1h', '6h'].map(range => (
                 <button
                   key={range}
                   onClick={() => setSelectedTimeRange(range)}
@@ -98,107 +148,73 @@ export default function ChartPage() {
         </div>
 
         {/* SUMMARY STATS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 shrink-0">
-          <div className="bg-bg-panel border border-border rounded-xl p-5 flex items-center space-x-4 shadow-md">
-            <div className="p-3 bg-scada-primary/20 text-scada-primary rounded-lg border border-scada-primary/30">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-bg-panel border border-border rounded-xl p-4 flex items-center shadow-sm">
+            <div className="p-3 bg-red-500/20 rounded-lg text-red-500 mr-4">
+              <Thermometer size={24} />
+            </div>
+            <div>
+              <p className="text-xs text-text-secondary uppercase tracking-widest font-bold">System Peak Temp</p>
+              <p className="text-2xl font-mono font-bold text-red-500">{stats.max.toFixed(1)}°C</p>
+            </div>
+          </div>
+          
+          <div className="bg-bg-panel border border-border rounded-xl p-4 flex items-center shadow-sm">
+            <div className="p-3 bg-scada-primary/20 rounded-lg text-scada-primary mr-4">
               <Activity size={24} />
             </div>
             <div>
-              <p className="text-text-secondary text-xs font-bold tracking-widest uppercase">Avg Temperature</p>
-              <p className="text-2xl font-mono font-bold">48.5<span className="text-lg text-text-secondary ml-1">°C</span></p>
+              <p className="text-xs text-text-secondary uppercase tracking-widest font-bold">Average Temp</p>
+              <p className="text-2xl font-mono font-bold text-text-primary">{stats.avg.toFixed(1)}°C</p>
             </div>
           </div>
-          <div className="bg-bg-panel border border-border rounded-xl p-5 flex items-center space-x-4 shadow-md">
-            <div className="p-3 bg-red-500/20 text-red-500 rounded-lg border border-red-500/30">
+
+          <div className="bg-bg-panel border border-border rounded-xl p-4 flex items-center shadow-sm">
+            <div className="p-3 bg-blue-500/20 rounded-lg text-blue-500 mr-4">
               <Thermometer size={24} />
             </div>
             <div>
-              <p className="text-text-secondary text-xs font-bold tracking-widest uppercase">Max Recorded</p>
-              <p className="text-2xl font-mono font-bold text-red-400">82.3<span className="text-lg text-red-400/50 ml-1">°C</span></p>
-              <p className="text-[10px] text-text-secondary mt-1 font-mono">BC MAIN 01 at 14:00</p>
+              <p className="text-xs text-text-secondary uppercase tracking-widest font-bold">Minimum Temp</p>
+              <p className="text-2xl font-mono font-bold text-text-primary">{stats.min.toFixed(1)}°C</p>
             </div>
           </div>
-          <div className="bg-bg-panel border border-border rounded-xl p-5 flex items-center space-x-4 shadow-md">
-            <div className="p-3 bg-blue-500/20 text-blue-500 rounded-lg border border-blue-500/30">
-              <Thermometer size={24} />
-            </div>
-            <div>
-              <p className="text-text-secondary text-xs font-bold tracking-widest uppercase">Min Recorded</p>
-              <p className="text-2xl font-mono font-bold text-blue-400">32.1<span className="text-lg text-blue-400/50 ml-1">°C</span></p>
-              <p className="text-[10px] text-text-secondary mt-1 font-mono">TN TCM 1 at 04:00</p>
-            </div>
-          </div>
-          <div className="bg-bg-panel border border-border rounded-xl p-5 flex items-center space-x-4 shadow-md">
-            <div className="p-3 bg-yellow-500/20 text-yellow-500 rounded-lg border border-yellow-500/30">
+          
+          <div className="bg-bg-panel border border-border rounded-xl p-4 flex items-center shadow-sm">
+            <div className="p-3 bg-yellow-500/20 rounded-lg text-yellow-500 mr-4">
               <AlertTriangle size={24} />
             </div>
             <div>
-              <p className="text-text-secondary text-xs font-bold tracking-widest uppercase">Alarm Triggers (24h)</p>
-              <p className="text-2xl font-mono font-bold text-yellow-500">12</p>
+              <p className="text-xs text-text-secondary uppercase tracking-widest font-bold">Active Alarms</p>
+              <p className="text-2xl font-mono font-bold text-yellow-500">0<span className="text-lg text-yellow-500/50 ml-1">Events</span></p>
             </div>
           </div>
         </div>
 
         {/* MAIN CHART */}
-        <div className="bg-bg-panel border border-border rounded-xl p-6 flex-1 min-h-[400px] flex flex-col relative shadow-lg">
-          <div className="absolute top-4 right-6 flex items-center space-x-4 z-10 bg-bg-panel/80 backdrop-blur-sm p-2 rounded-lg border border-border shadow-sm">
-             <div className="flex items-center text-xs font-mono font-bold">
-               <span className="w-3 h-3 rounded-full bg-red-500/50 border border-red-500 mr-2"></span>
-               Alarm Threshold (70°C)
-             </div>
-             <div className="flex items-center text-xs font-mono font-bold">
-               <span className="w-3 h-3 rounded-full bg-yellow-500/50 border border-yellow-500 mr-2"></span>
-               Warning Threshold (60°C)
-             </div>
-          </div>
-
+        <div className="flex-1 bg-bg-panel border border-border rounded-xl p-6 shadow-sm flex flex-col min-h-[400px]">
+          {loading && chartData.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center font-mono text-text-secondary animate-pulse">LOADING HISTORICAL DATA...</div>
+          ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={CHART_DATA} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" opacity={0.5} vertical={false} />
-              
-              <ReferenceLine y={70} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={2} label={{ position: 'insideTopLeft', value: 'ALARM', fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }} />
-              <ReferenceLine y={60} stroke="#eab308" strokeDasharray="3 3" strokeWidth={2} label={{ position: 'insideTopLeft', value: 'WARNING', fill: '#eab308', fontSize: 10, fontWeight: 'bold' }} />
-
-              <XAxis 
-                dataKey="time" 
-                stroke="var(--text-secondary)" 
-                fontSize={12} 
-                tickMargin={15}
-                tick={{ fill: 'var(--text-secondary)' }}
-                axisLine={{ stroke: 'var(--border-color)' }}
-                tickLine={false}
-              />
-              <YAxis 
-                stroke="var(--text-secondary)" 
-                fontSize={12} 
-                tickFormatter={(value) => `${value}°C`}
-                tick={{ fill: 'var(--text-secondary)' }}
-                axisLine={false}
-                tickLine={false}
-                domain={[20, 90]}
-              />
-              
+            <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} vertical={false} />
+              <XAxis dataKey="time" stroke="#9ca3af" fontSize={12} tickMargin={10} />
+              <YAxis stroke="#9ca3af" fontSize={12} domain={['dataMin - 10', 'dataMax + 10']} />
               <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'var(--bg-panel)', 
-                  borderColor: 'var(--border-color)', 
-                  borderRadius: '12px', 
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
-                  color: 'var(--text-primary)',
-                  fontFamily: 'monospace'
-                }}
+                contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
                 itemStyle={{ fontWeight: 'bold' }}
-                labelStyle={{ color: 'var(--text-secondary)', marginBottom: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}
+                labelStyle={{ color: 'var(--text-secondary)' }}
               />
+              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
               
-              <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+              <ReferenceLine y={60} stroke="#ef4444" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'WARNING THRESHOLD', fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }} />
               
-              <Line type="monotone" dataKey="TN BEK 3" stroke="#0ea5e9" strokeWidth={3} dot={false} activeDot={{ r: 6, strokeWidth: 0 }} />
-              <Line type="monotone" dataKey="TN BEK 4" stroke="#8b5cf6" strokeWidth={3} dot={false} activeDot={{ r: 6, strokeWidth: 0 }} />
-              <Line type="monotone" dataKey="TN TCM 1" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 6, strokeWidth: 0 }} />
-              <Line type="monotone" dataKey="BC MAIN 01" stroke="#f97316" strokeWidth={3} dot={false} activeDot={{ r: 6, strokeWidth: 0 }} />
+              {lines.map((name, i) => (
+                <Line key={name} type="monotone" dataKey={name} stroke={COLORS[i % COLORS.length]} strokeWidth={name === lines[0] ? 3 : 2} dot={false} activeDot={{ r: 6, strokeWidth: 0 }} />
+              ))}
             </LineChart>
           </ResponsiveContainer>
+          )}
         </div>
       </div>
     </div>

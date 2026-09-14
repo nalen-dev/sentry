@@ -41,7 +41,7 @@
    const [userRole, setUserRole] = useState('OPERATOR');
    const [userId, setUserId] = useState('OP-7729');
 -  const [selectedTimeRange, setSelectedTimeRange] = useState('24h');
-+  const [selectedTimeRange, setSelectedTimeRange] = useState('30m'); 
++  const [selectedTimeRange, setSelectedTimeRange] = useState('30m'); // Limit rows for performance
 +  
 +  const [chartData, setChartData] = useState<any[]>([]);
 +  const [lines, setLines] = useState<string[]>([]);
@@ -91,10 +91,11 @@
 +        if (isMounted) {
 +          setChartData(finalData);
 +          
++          // Calculate basic stats for the display cards based on the top 5
 +          let max = -999, min = 999, sum = 0, count = 0;
 +          finalData.forEach(row => {
 +            names.forEach(n => {
-+              if (row[n] !== undefined) {
++              if (row[n]) {
 +                if (row[n] > max) max = row[n];
 +                if (row[n] < min) min = row[n];
 +                sum += row[n];
@@ -102,7 +103,7 @@
 +              }
 +            });
 +          });
-+          setStats({ max: max === -999 ? 0 : max, min: min === 999 ? 0 : min, avg: count ? sum / count : 0 });
++          setStats({ max, min: min === 999 ? 0 : min, avg: count ? sum / count : 0 });
 +          setLoading(false);
 +        }
 +      } catch (err) {
@@ -112,7 +113,7 @@
 +    };
 +    
 +    fetchData();
-+    const interval = setInterval(fetchData, 10000); 
++    const interval = setInterval(fetchData, 10000); // refresh every 10s
 +    return () => { isMounted = false; clearInterval(interval); };
 +  }, [selectedTimeRange]);
 +
@@ -126,53 +127,44 @@
                  <button
                    key={range}
                    onClick={() => setSelectedTimeRange(range)}
-@@ -102,40 +141,39 @@
-         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 shrink-0">
-           <div className="bg-bg-panel border border-border rounded-xl p-5 flex items-center space-x-4 shadow-md">
-             <div className="p-3 bg-scada-primary/20 text-scada-primary rounded-lg border border-scada-primary/30">
+@@ -101,30 +140,29 @@
+         {/* SUMMARY STATS */}
+         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+           <div className="bg-bg-panel border border-border rounded-xl p-4 flex items-center shadow-sm">
+             <div className="p-3 bg-red-500/20 rounded-lg text-red-500 mr-4">
+               <Thermometer size={24} />
+             </div>
+             <div>
+               <p className="text-xs text-text-secondary uppercase tracking-widest font-bold">System Peak Temp</p>
+-              <p className="text-2xl font-mono font-bold text-red-500">76.4°C</p>
++              <p className="text-2xl font-mono font-bold text-red-500">{stats.max.toFixed(1)}°C</p>
+             </div>
+           </div>
+           
+           <div className="bg-bg-panel border border-border rounded-xl p-4 flex items-center shadow-sm">
+             <div className="p-3 bg-scada-primary/20 rounded-lg text-scada-primary mr-4">
                <Activity size={24} />
              </div>
              <div>
-               <p className="text-text-secondary text-xs font-bold tracking-widest uppercase">Avg Temperature</p>
--              <p className="text-2xl font-mono font-bold">48.5<span className="text-lg text-text-secondary ml-1">°C</span></p>
-+              <p className="text-2xl font-mono font-bold">{stats.avg.toFixed(1)}<span className="text-lg text-text-secondary ml-1">°C</span></p>
+               <p className="text-xs text-text-secondary uppercase tracking-widest font-bold">Average Temp</p>
+-              <p className="text-2xl font-mono font-bold text-text-primary">42.8°C</p>
++              <p className="text-2xl font-mono font-bold text-text-primary">{stats.avg.toFixed(1)}°C</p>
              </div>
            </div>
-           <div className="bg-bg-panel border border-border rounded-xl p-5 flex items-center space-x-4 shadow-md">
-             <div className="p-3 bg-red-500/20 text-red-500 rounded-lg border border-red-500/30">
+ 
+           <div className="bg-bg-panel border border-border rounded-xl p-4 flex items-center shadow-sm">
+             <div className="p-3 bg-blue-500/20 rounded-lg text-blue-500 mr-4">
                <Thermometer size={24} />
              </div>
              <div>
-               <p className="text-text-secondary text-xs font-bold tracking-widest uppercase">Max Recorded</p>
--              <p className="text-2xl font-mono font-bold text-red-400">82.3<span className="text-lg text-red-400/50 ml-1">°C</span></p>
--              <p className="text-[10px] text-text-secondary mt-1 font-mono">BC MAIN 01 at 14:00</p>
-+              <p className="text-2xl font-mono font-bold text-red-400">{stats.max.toFixed(1)}<span className="text-lg text-red-400/50 ml-1">°C</span></p>
+               <p className="text-xs text-text-secondary uppercase tracking-widest font-bold">Minimum Temp</p>
+-              <p className="text-2xl font-mono font-bold text-text-primary">34.2°C</p>
++              <p className="text-2xl font-mono font-bold text-text-primary">{stats.min.toFixed(1)}°C</p>
              </div>
            </div>
-           <div className="bg-bg-panel border border-border rounded-xl p-5 flex items-center space-x-4 shadow-md">
-             <div className="p-3 bg-blue-500/20 text-blue-500 rounded-lg border border-blue-500/30">
-               <Thermometer size={24} />
-             </div>
-             <div>
-               <p className="text-text-secondary text-xs font-bold tracking-widest uppercase">Min Recorded</p>
--              <p className="text-2xl font-mono font-bold text-blue-400">35.2<span className="text-lg text-blue-400/50 ml-1">°C</span></p>
--              <p className="text-[10px] text-text-secondary mt-1 font-mono">TN TCM 1 at 04:00</p>
-+              <p className="text-2xl font-mono font-bold text-blue-400">{stats.min.toFixed(1)}<span className="text-lg text-blue-400/50 ml-1">°C</span></p>
-             </div>
-           </div>
-           <div className="bg-bg-panel border border-border rounded-xl p-5 flex items-center space-x-4 shadow-md">
-             <div className="p-3 bg-yellow-500/20 text-yellow-500 rounded-lg border border-yellow-500/30">
-               <AlertTriangle size={24} />
-             </div>
-             <div>
-               <p className="text-text-secondary text-xs font-bold tracking-widest uppercase">Active Alarms</p>
--              <p className="text-2xl font-mono font-bold text-yellow-500">3<span className="text-lg text-yellow-500/50 ml-1">Events</span></p>
--              <p className="text-[10px] text-text-secondary mt-1 font-mono">Requires Attention</p>
-+              <p className="text-2xl font-mono font-bold text-yellow-500">0<span className="text-lg text-yellow-500/50 ml-1">Events</span></p>
-             </div>
-           </div>
-         </div>
-@@ -143,21 +181,25 @@
+           
+@@ -140,26 +178,25 @@
+ 
          {/* MAIN CHART */}
          <div className="flex-1 bg-bg-panel border border-border rounded-xl p-6 shadow-sm flex flex-col min-h-[400px]">
 +          {loading && chartData.length === 0 ? (

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Activity, LineChart as LineChartIcon } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
@@ -7,7 +8,7 @@ interface RightPanelProps {
   normalSegments: number;
   warningSegments: number;
   dangerSegments: number;
-  dummyChartData: { time: string; temp: number }[];
+  filteredAreas: any[];
 }
 
 export default function RightPanel({
@@ -15,9 +16,44 @@ export default function RightPanel({
   normalSegments,
   warningSegments,
   dangerSegments,
-  dummyChartData
+  filteredAreas
 }: RightPanelProps) {
   const navigate = useNavigate();
+  
+  const [chartMode, setChartMode] = useState<'area' | 'history'>('area');
+  const [historyData, setHistoryData] = useState<any[]>([]);
+  
+  // Fetch history for the hottest segment if in history mode
+  useEffect(() => {
+    let isMounted = true;
+    import('@tauri-apps/api/core').then(({ invoke }) => {
+      const fetchHistory = async () => {
+        if (chartMode !== 'history' || filteredAreas.length === 0) return;
+        
+        // Find hottest segment
+        const hottest = [...filteredAreas].sort((a, b) => (b.temp_avg || 0) - (a.temp_avg || 0))[0];
+        if (!hottest || !hottest.dts_ch || !hottest.dts_code) return;
+        
+        try {
+          const data = await invoke<any[]>('get_segment_history', { dtsCh: hottest.dts_ch, dtsCode: hottest.dts_code, limit: 30 });
+          if (isMounted) setHistoryData(data);
+        } catch (err) {
+          console.error("Failed to fetch history for RightPanel", err);
+        }
+      };
+      
+      fetchHistory();
+      const timer = setInterval(fetchHistory, 5000);
+      return () => { isMounted = false; clearInterval(timer); };
+    });
+  }, [chartMode, filteredAreas]);
+
+  // Prepare Area Chart Data
+  const areaChartData = filteredAreas.map(a => ({
+    name: a.name,
+    distance: a.distance,
+    temp: a.temp_avg || 0
+  }));
 
   return (
     <>
@@ -49,26 +85,32 @@ export default function RightPanel({
       {/* TEMPERATURE CHART */}
       <div 
         onClick={() => navigate('/chart')}
-        className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto flex-1 flex flex-col min-h-0 mt-4 cursor-pointer hover:border-scada-primary/50 transition-colors group"
+        className="bg-bg-panel/95 backdrop-blur-md border border-border rounded-xl p-4 shadow-lg pointer-events-auto flex-1 flex flex-col min-h-0 mt-4 transition-colors group"
       >
         <div className="text-sm font-bold text-text-primary uppercase tracking-widest flex items-center justify-between border-b border-border pb-2 mb-3 shrink-0">
           <div className="flex items-center">
             <LineChartIcon size={16} className="mr-2 text-scada-primary group-hover:scale-110 transition-transform" /> TEMPERATURE TREND
           </div>
-          <span className="text-[10px] text-scada-primary opacity-0 group-hover:opacity-100 transition-opacity font-mono">CLICK TO EXPAND</span>
+          <div className="flex bg-bg-base p-1 rounded-md cursor-pointer" onClick={(e) => { e.stopPropagation(); }}>
+            <button onClick={() => setChartMode('area')} className={`text-[9px] px-2 py-1 rounded transition-colors ${chartMode === 'area' ? 'bg-bg-surface text-scada-primary' : 'text-text-secondary hover:text-text-primary'}`}>PER AREA</button>
+            <button onClick={() => setChartMode('history')} className={`text-[9px] px-2 py-1 rounded transition-colors ${chartMode === 'history' ? 'bg-bg-surface text-scada-primary' : 'text-text-secondary hover:text-text-primary'}`}>HISTORY (HOTTEST)</button>
+          </div>
         </div>
-        <div className="flex-1 w-full min-h-0">
+        <div className="flex-1 w-full min-h-0 cursor-pointer">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={dummyChartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+            <LineChart data={chartMode === 'area' ? areaChartData : historyData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} />
-              <XAxis dataKey="time" stroke="#9ca3af" fontSize={10} tickMargin={5} />
+              <XAxis dataKey={chartMode === 'area' ? "name" : "time"} stroke="#9ca3af" fontSize={10} tickMargin={5} />
               <YAxis stroke="#9ca3af" fontSize={10} />
               <Tooltip 
                 contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
-                itemStyle={{ color: '#06b6d4', fontWeight: 'bold' }}
+                itemStyle={{ color: 'var(--scada-primary)', fontWeight: 'bold' }}
                 labelStyle={{ color: 'var(--text-secondary)' }}
+                formatter={(value: any, _name: any, props: any) => {
+                  return [`${value}°C`, chartMode === 'area' ? `Area: ${props.payload.name}` : `Temp`];
+                }}
               />
-              <Line type="monotone" dataKey="temp" stroke="#06b6d4" strokeWidth={2} dot={{ r: 3, fill: '#06b6d4', strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+              <Line type="monotone" dataKey="temp" stroke="var(--scada-primary)" strokeWidth={2} dot={chartMode === 'area' ? { r: 3, fill: 'var(--scada-primary)', strokeWidth: 0 } : false} activeDot={{ r: 5, strokeWidth: 0 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
