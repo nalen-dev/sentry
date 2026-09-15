@@ -60,7 +60,7 @@ export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename
         if (!segment.dts_ch || !segment.dts_code) return;
         try {
           if (chartMode === 'history') {
-            const data = await invoke<any[]>('get_segment_history', { dtsCh: segment.dts_ch, dtsCode: segment.dts_code, limit: 100 });
+            const data = await invoke<any[]>('get_segment_history', { dtsCh: segment.dts_ch, dtsCode: segment.dts_code, minutes: 30 });
             if (isMounted) setChartData(data);
           } else {
             // Distance curve

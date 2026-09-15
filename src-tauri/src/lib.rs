@@ -353,7 +353,7 @@ async fn get_segment_history(
     #[allow(non_snake_case)]
     struct HistRow { CreationTime: Option<chrono::DateTime<chrono::Utc>>, TempAvg: Option<i32> }
     
-    let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= DATE_SUB(NOW(), INTERVAL ? MINUTE) ORDER BY CreationTime DESC")
+    let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= DATE_SUB((SELECT MAX(CreationTime) FROM fq_history_list), INTERVAL ? MINUTE) ORDER BY CreationTime DESC")
         .bind(dts_ch).bind(dts_code).bind(minutes)
         .fetch_all(&mysql_pool)
         .await.map_err(|e| e.to_string())?;
@@ -396,7 +396,7 @@ async fn get_groups_history(
     let mut group_data: std::collections::HashMap<String, std::collections::HashMap<String, Vec<f32>>> = std::collections::HashMap::new();
     
     for map in mappings {
-        let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= DATE_SUB(NOW(), INTERVAL ? MINUTE) ORDER BY CreationTime DESC")
+        let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= DATE_SUB((SELECT MAX(CreationTime) FROM fq_history_list), INTERVAL ? MINUTE) ORDER BY CreationTime DESC")
             .bind(map.dts_ch).bind(map.dts_code).bind(minutes)
             .fetch_all(&mysql_pool)
             .await.unwrap_or_default();
