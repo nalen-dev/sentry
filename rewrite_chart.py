@@ -1,5 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
-import { LineChart as LineChartIcon, Download, Activity, Thermometer, Layers, Map } from 'lucide-react';
+import re
+
+with open('src/pages/ChartPage.tsx', 'r') as f:
+    content = f.read()
+
+new_chart_page = """import { useState, useEffect, useMemo } from 'react';
+import { LineChart as LineChartIcon, Filter, Download, Activity, Thermometer, AlertTriangle, Layers, Map } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine, AreaChart, Area } from 'recharts';
 import TopNavbar from '../components/layout/TopNavbar';
 import { invoke } from '@tauri-apps/api/core';
@@ -344,3 +349,8 @@ export default function ChartPage() {
     </div>
   );
 }
+"""
+
+with open('src/pages/ChartPage.tsx', 'w') as f:
+    f.write(new_chart_page)
+
