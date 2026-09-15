@@ -5,6 +5,11 @@ use sqlx::SqlitePool;
 use std::collections::HashMap;
 use tauri::Manager;
 use serde::{Serialize, Deserialize};
+use tokio::sync::Mutex;
+use sqlx::mysql::{MySqlPool, MySqlPoolOptions, MySqlConnectOptions};
+
+struct MysqlState(Mutex<Option<MySqlPool>>);
+
 
 #[derive(Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
@@ -29,16 +34,52 @@ async fn get_all_settings(state: tauri::State<'_, SqlitePool>) -> Result<HashMap
 }
 
 #[tauri::command]
-async fn save_setting(key: String, value: String, state: tauri::State<'_, SqlitePool>) -> Result<(), String> {
+async fn save_setting(key: String, value: String, state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<(), String> {
     sqlx::query("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
-        .bind(key)
+        .bind(&key)
         .bind(value)
         .execute(&*state)
         .await
         .map_err(|e| e.to_string())?;
+        
+    if key.starts_with("db_") {
+        let mut guard = mysql_state.0.lock().await;
+        if let Some(pool) = guard.take() {
+            pool.close().await;
+        }
+    }
     
     Ok(())
 }
+
+async fn get_mysql_pool(sqlite_pool: &SqlitePool, mysql_state: &tauri::State<'_, MysqlState>) -> Result<MySqlPool, String> {
+    let mut guard = mysql_state.0.lock().await;
+    if let Some(pool) = &*guard {
+        return Ok(pool.clone());
+    }
+
+    let rows: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings").fetch_all(sqlite_pool).await.map_err(|e| e.to_string())?;
+    let mut settings = std::collections::HashMap::new();
+    for (k, v) in rows { settings.insert(k, v); }
+
+    let db_host = settings.get("db_host").cloned().unwrap_or_else(|| "192.168.1.64".to_string());
+    let db_port = settings.get("db_port").cloned().unwrap_or_else(|| "58329".to_string());
+    let db_user = settings.get("db_user").cloned().unwrap_or_else(|| "root".to_string());
+    let db_pass = settings.get("db_pass").cloned().unwrap_or_else(|| "l0mY4cH9H?h9".to_string());
+    let db_name = settings.get("db_name").cloned().unwrap_or_else(|| "dtscontroler".to_string());
+    
+    let options = MySqlConnectOptions::new()
+        .host(&db_host).port(db_port.parse().unwrap_or(3306)).username(&db_user).password(&db_pass).database(&db_name);
+        
+    let pool = MySqlPoolOptions::new()
+        .max_connections(10)
+        .acquire_timeout(std::time::Duration::from_secs(5))
+        .connect_with(options).await.map_err(|e| format!("MySQL Connection Failed: {}", e))?;
+        
+    *guard = Some(pool.clone());
+    Ok(pool.clone())
+}
+
 
 #[tauri::command]
 async fn get_users(state: tauri::State<'_, SqlitePool>) -> Result<Vec<User>, String> {
@@ -72,7 +113,7 @@ struct SyncResult {
 }
 
 #[tauri::command]
-async fn sync_dts_segments(state: tauri::State<'_, SqlitePool>) -> Result<SyncResult, String> {
+async fn sync_dts_segments(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<SyncResult, String> {
     // 1. Get MySQL connection settings from SQLite
     let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
         .fetch_all(&*state)
@@ -96,22 +137,7 @@ async fn sync_dts_segments(state: tauri::State<'_, SqlitePool>) -> Result<SyncRe
         }
     }
 
-    let port_num = db_port.parse::<u16>().unwrap_or(3306);
-    let options = sqlx::mysql::MySqlConnectOptions::new()
-        .host(&db_host)
-        .port(port_num)
-        .username(&db_user)
-        .password(&db_pass)
-        .database(&db_name);
-    
-    // 2. Connect to MySQL with short timeout (since WSL might fail)
-    let mysql_pool = sqlx::mysql::MySqlPoolOptions::new()
-        .max_connections(1)
-        .acquire_timeout(std::time::Duration::from_secs(3))
-        .connect_with(options)
-        .await
-        .map_err(|e| format!("MySQL Connection Failed: {}", e))?;
-
+    let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     // 3. Fetch from opt_fq_list
     #[derive(sqlx::FromRow)]
     struct OptRow { ch: i32, code: Option<i32>, fq_table: Option<String>, start: Option<i32>, end: Option<i32> }
@@ -209,7 +235,7 @@ pub struct LiveSegment {
 }
 
 #[tauri::command]
-async fn get_live_segments(state: tauri::State<'_, SqlitePool>) -> Result<Vec<LiveSegment>, String> {
+async fn get_live_segments(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<Vec<LiveSegment>, String> {
     // Get local mappings
     let mappings = get_segment_mappings(state.clone()).await?;
     
@@ -226,11 +252,7 @@ async fn get_live_segments(state: tauri::State<'_, SqlitePool>) -> Result<Vec<Li
     let mut db_name = String::from("dtscontroler");
     for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
     
-    let port_num = db_port.parse::<u16>().unwrap_or(3306);
-    let options = sqlx::mysql::MySqlConnectOptions::new().host(&db_host).port(port_num).username(&db_user).password(&db_pass).database(&db_name);
-    
-    let mysql_pool = sqlx::mysql::MySqlPoolOptions::new().max_connections(1).acquire_timeout(std::time::Duration::from_secs(3)).connect_with(options).await.map_err(|e| format!("MySQL Connection Failed: {}", e))?;
-    
+    let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     #[derive(sqlx::FromRow)]
     struct LiveRow { ch: i32, code: i32, temp_avg: Option<i32>, temp_min: Option<i32>, temp_max: Option<i32>, temp_min_p: Option<i32>, temp_max_p: Option<i32> }
     
@@ -266,7 +288,7 @@ async fn get_segment_curve(
     dts_ch: i32,
     start_m: i32,
     end_m: i32,
-    state: tauri::State<'_, SqlitePool>
+    state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
 ) -> Result<Vec<CurvePoint>, String> {
     let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
         .fetch_all(&*state).await.map_err(|e| e.to_string())?;
@@ -278,9 +300,7 @@ async fn get_segment_curve(
     let mut db_name = String::from("dtscontroler");
     for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
     
-    let options = sqlx::mysql::MySqlConnectOptions::new().host(&db_host).port(db_port.parse().unwrap_or(3306)).username(&db_user).password(&db_pass).database(&db_name);
-    let mysql_pool = sqlx::mysql::MySqlPoolOptions::new().max_connections(1).connect_with(options).await.map_err(|e| e.to_string())?;
-    
+    let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     #[derive(sqlx::FromRow)]
     struct CurveRow { str: Option<String> }
     
@@ -316,7 +336,7 @@ async fn get_segment_history(
     dts_ch: i32,
     dts_code: i32,
     limit: i32,
-    state: tauri::State<'_, SqlitePool>
+    state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
 ) -> Result<Vec<HistoryPoint>, String> {
     let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
         .fetch_all(&*state).await.map_err(|e| e.to_string())?;
@@ -328,9 +348,7 @@ async fn get_segment_history(
     let mut db_name = String::from("dtscontroler");
     for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
     
-    let options = sqlx::mysql::MySqlConnectOptions::new().host(&db_host).port(db_port.parse().unwrap_or(3306)).username(&db_user).password(&db_pass).database(&db_name);
-    let mysql_pool = sqlx::mysql::MySqlPoolOptions::new().max_connections(1).connect_with(options).await.map_err(|e| e.to_string())?;
-    
+    let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     #[derive(sqlx::FromRow)]
     #[allow(non_snake_case)]
     struct HistRow { CreationTime: Option<chrono::NaiveDateTime>, TempAvg: Option<i32> }
@@ -365,7 +383,7 @@ pub struct AlarmLog {
 }
 
 #[tauri::command]
-async fn get_alarms(state: tauri::State<'_, SqlitePool>) -> Result<Vec<AlarmLog>, String> {
+async fn get_alarms(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<Vec<AlarmLog>, String> {
     let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
         .fetch_all(&*state).await.map_err(|e| e.to_string())?;
         
@@ -376,9 +394,7 @@ async fn get_alarms(state: tauri::State<'_, SqlitePool>) -> Result<Vec<AlarmLog>
     let mut db_name = String::from("dtscontroler");
     for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
     
-    let options = sqlx::mysql::MySqlConnectOptions::new().host(&db_host).port(db_port.parse().unwrap_or(3306)).username(&db_user).password(&db_pass).database(&db_name);
-    let mysql_pool = sqlx::mysql::MySqlPoolOptions::new().max_connections(1).connect_with(options).await.map_err(|e| e.to_string())?;
-    
+    let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     #[derive(sqlx::FromRow)]
     #[allow(non_snake_case)]
     struct AlarmRow { ID: i32, CreationTime: Option<chrono::NaiveDateTime>, Ch: Option<i32>, Code: Option<i32>, AlarmPoint: Option<i32>, AlarmCode: Option<i32>, AlarmTemp: Option<i32>, AlarmResetTime: Option<chrono::NaiveDateTime> }
@@ -448,6 +464,7 @@ pub fn run() {
                 
                 // Store connection pool in Tauri state
                 handle.manage(pool);
+                handle.manage(MysqlState(Mutex::new(None)));
             });
             
             Ok(())

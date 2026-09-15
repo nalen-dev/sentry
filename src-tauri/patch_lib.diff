@@ -1,0 +1,63 @@
+--- src/lib.rs
++++ src/lib.rs
+@@ -6,6 +6,9 @@
+ use tauri::Manager;
+ use serde::{Serialize, Deserialize};
++use tokio::sync::Mutex;
++use sqlx::mysql::{MySqlPool, MySqlPoolOptions, MySqlConnectOptions};
++
++struct MysqlState(Mutex<Option<MySqlPool>>);
+ 
+ #[derive(Serialize, Deserialize, sqlx::FromRow)]
+ pub struct User {
+@@ -32,6 +35,10 @@
+ }
+ 
+ #[tauri::command]
+-async fn save_setting(key: String, value: String, state: tauri::State<'_, SqlitePool>) -> Result<(), String> {
++async fn save_setting(key: String, value: String, state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<(), String> {
+     sqlx::query("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+         .bind(key)
+@@ -37,4 +44,40 @@
+         .execute(&*state)
+         .await
+         .map_err(|e| e.to_string())?;
++        
++    // If db settings change, clear the pool so it reconnects next time
++    if key.starts_with("db_") {
++        let mut guard = mysql_state.0.lock().await;
++        if let Some(pool) = guard.take() {
++            pool.close().await;
++        }
++    }
+     
+     Ok(())
+ }
++
++async fn get_mysql_pool(sqlite_pool: &SqlitePool, mysql_state: &tauri::State<'_, MysqlState>) -> Result<MySqlPool, String> {
++    let mut guard = mysql_state.0.lock().await;
++    if let Some(pool) = &*guard {
++        return Ok(pool.clone());
++    }
++
++    let rows: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings").fetch_all(sqlite_pool).await.map_err(|e| e.to_string())?;
++    let mut settings = HashMap::new();
++    for (k, v) in rows { settings.insert(k, v); }
++
++    let db_host = settings.get("db_host").cloned().unwrap_or_else(|| "192.168.1.64".to_string());
++    let db_port = settings.get("db_port").cloned().unwrap_or_else(|| "58329".to_string());
++    let db_user = settings.get("db_user").cloned().unwrap_or_else(|| "root".to_string());
++    let db_pass = settings.get("db_pass").cloned().unwrap_or_else(|| "l0mY4cH9H?h9".to_string());
++    let db_name = settings.get("db_name").cloned().unwrap_or_else(|| "dtscontroler".to_string());
++    
++    let options = MySqlConnectOptions::new()
++        .host(&db_host).port(db_port.parse().unwrap_or(3306)).username(&db_user).password(&db_pass).database(&db_name);
++        
++    let pool = MySqlPoolOptions::new()
++        .max_connections(10)
++        .acquire_timeout(std::time::Duration::from_secs(5))
++        .connect_with(options).await.map_err(|e| format!("MySQL Connection Failed: {}", e))?;
++        
++    *guard = Some(pool.clone());
++    Ok(pool.clone())
++}

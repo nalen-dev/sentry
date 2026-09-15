@@ -193,7 +193,11 @@ export default function ChartPage() {
         {/* MAIN CHART */}
         <div className="flex-1 bg-bg-panel border border-border rounded-xl p-6 shadow-sm flex flex-col min-h-[400px]">
           {loading && chartData.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center font-mono text-text-secondary animate-pulse">LOADING HISTORICAL DATA...</div>
+            <div className="flex-1 flex items-center justify-center font-mono text-scada-primary animate-pulse tracking-widest font-bold">LOADING HISTORICAL DATA...</div>
+          ) : (!loading && chartData.length === 0) ? (
+            <div className="flex-1 flex items-center justify-center font-mono text-red-400 tracking-widest font-bold text-center">
+              NO SEGMENTS FOUND.<br/>PLEASE SYNC FROM DTS IN SETTINGS.
+            </div>
           ) : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>

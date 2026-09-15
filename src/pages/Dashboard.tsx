@@ -10,7 +10,6 @@ import LogPanel from '../features/dashboard/LogPanel';
 import LeftPanel from '../features/dashboard/LeftPanel';
 import RightPanel from '../features/dashboard/RightPanel';
 import DataModal from '../features/dashboard/DataModal';
-import { DUMMY_AREAS} from '../data/constants';
 
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
@@ -58,6 +57,7 @@ export default function Dashboard() {
 
   const [mappings, setMappings] = useState<LiveSegment[]>([]);
   const [alarms, setAlarms] = useState<AlarmLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeMainGroup, setActiveMainGroup] = useState<string>('All');
   const [activeSubGroup, setActiveSubGroup] = useState<string>('All');
 
@@ -74,13 +74,17 @@ export default function Dashboard() {
     if ('__TAURI_INTERNALS__' in window) {
       const fetchLive = () => {
         import('@tauri-apps/api/core').then(({ invoke }) => {
-          invoke<LiveSegment[]>('get_live_segments')
-            .then(setMappings)
-            .catch(err => console.error("Failed to load live segments", err));
-            
-          invoke<AlarmLog[]>('get_alarms')
-            .then(setAlarms)
-            .catch(err => console.error("Failed to load alarms", err));
+          Promise.all([
+            invoke<LiveSegment[]>('get_live_segments'),
+            invoke<AlarmLog[]>('get_alarms')
+          ]).then(([m, a]) => {
+            setMappings(m);
+            setAlarms(a);
+            setIsLoading(false);
+          }).catch(err => {
+            console.error("Failed to load live data", err);
+            setIsLoading(false);
+          });
         });
       };
       
@@ -139,8 +143,7 @@ export default function Dashboard() {
     ? Array.from(new Set(mappings.filter(m => m.main_group === activeMainGroup && m.sub_group).map(m => m.sub_group as string)))
     : [];
 
-  const baseAreas: (SegmentData & { mainGroup: string; subGroup: string | null })[] = mappings.length > 0 
-    ? mappings.map(m => ({
+  const baseAreas: (SegmentData & { mainGroup: string; subGroup: string | null })[] = mappings.map(m => ({
         id: m.id,
         name: m.custom_name || m.original_name,
         distance: m.start_m != null && m.end_m != null ? `${m.start_m}m - ${m.end_m}m` : `CH${m.dts_ch}-C${m.dts_code}`,
@@ -160,8 +163,7 @@ export default function Dashboard() {
         dts_code: m.dts_code,
         start_m: m.start_m ?? undefined,
         end_m: m.end_m ?? undefined,
-      }))
-    : DUMMY_AREAS.map(a => ({ ...a, mainGroup: 'Unassigned', subGroup: null, mappingId: undefined, original_name: undefined }));
+      }));
 
   const filteredAreas = baseAreas.filter(area => {
     const matchesSearch = area.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -209,6 +211,31 @@ export default function Dashboard() {
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 relative overflow-hidden bg-bg-base flex">
+        {isLoading && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-bg-base/80 backdrop-blur-sm">
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 border-4 border-scada-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="font-mono text-scada-primary font-bold tracking-widest text-lg animate-pulse">LOADING FIELD DATA...</p>
+            </div>
+          </div>
+        )}
+        
+        {!isLoading && mappings.length === 0 && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-bg-base/90 backdrop-blur-md">
+            <div className="flex flex-col items-center max-w-lg text-center p-8 border border-border rounded-xl bg-bg-panel shadow-2xl">
+              <Layout size={48} className="text-text-secondary mb-4" />
+              <h3 className="font-bold text-2xl text-text-primary tracking-widest mb-2">NO SEGMENTS CONFIGURED</h3>
+              <p className="text-text-secondary mb-6">Your dashboard is empty because no fiber segments have been mapped yet.</p>
+              <button 
+                onClick={() => window.location.href = '/settings'}
+                className="px-6 py-3 bg-scada-primary text-black font-bold tracking-widest uppercase rounded hover:bg-scada-primary/90 transition-colors"
+              >
+                Go To Settings & Sync Data
+              </button>
+            </div>
+          </div>
+        )}
+
         
         {/* MAP/DIAGRAM VISUALIZATION (Background Layer) */}
         <div className="flex-1 relative flex bg-bg-panel/30 overflow-hidden">
