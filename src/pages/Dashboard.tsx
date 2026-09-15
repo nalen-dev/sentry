@@ -69,7 +69,7 @@ export default function Dashboard() {
   const [selectedSegment, setSelectedSegment] = useState<SegmentData | null>(null);
   
   const [showDataModal, setShowDataModal] = useState(false);
-  const [categoryModal, setCategoryModal] = useState<'Total' | 'Normal' | 'HighTemp' | 'FiberBreak' | null>(null);
+  const [categoryModal, setCategoryModal] = useState<'Total' | 'Normal' | 'Warning' | 'Danger' | null>(null);
 
   // Pagination for Left Panel
   const itemsPerPage = isFullscreen ? 2 : 4;
@@ -168,14 +168,21 @@ export default function Dashboard() {
       const isCableBroken = m.temp_max < -50;
       const isTempCritical = m.temp_max >= criticalThreshold;
       const isTempWarning = m.temp_max >= warningThreshold;
-      const isDbAlarm = alarms.some(a => a.is_active && a.ch === m.dts_ch && a.code === m.dts_code);
       
-      const isAlarm = isCableBroken || isTempCritical || isDbAlarm;
+      const dbAlarm = alarms.find(a => a.is_active && a.ch === m.dts_ch && a.code === m.dts_code);
+      const isAlarm = isCableBroken || isTempCritical || !!dbAlarm;
+      
       let status = 'Normal';
-      if (isCableBroken) status = 'Broken Cable';
-      else if (isTempCritical) status = 'Critical';
-      else if (isTempWarning) status = 'Warning';
-      else if (isDbAlarm) status = 'Alarm';
+      if (isCableBroken) status = 'FIBER BREAK';
+      else if (isTempCritical) status = 'HIGH TEMP (CRITICAL)';
+      else if (isTempWarning) status = 'HIGH TEMP (WARN)';
+      else if (dbAlarm) {
+         if (dbAlarm.alarm_type === 1) status = 'HIGH TEMP';
+         else if (dbAlarm.alarm_type === 2) status = 'LOW TEMP';
+         else if (dbAlarm.alarm_type === 3) status = 'TEMP RISE';
+         else if (dbAlarm.alarm_type === 4) status = 'FIBER BREAK';
+         else status = 'SENSOR ALARM';
+      }
       
       return {
         id: m.id,
@@ -228,10 +235,10 @@ export default function Dashboard() {
   // Stats
   const totalSegments = baseAreas.length;
   const normalSegments = baseAreas.filter(a => a.status === 'Normal').length;
-  const highTempSegments = baseAreas.filter(a => a.status === 'Warning' || a.status === 'Critical').length;
-  const fiberBreakSegments = baseAreas.filter(a => a.status === 'Broken Cable').length;
+  const warningSegments = baseAreas.filter(a => a.status.includes('WARN')).length;
+  const dangerSegments = baseAreas.filter(a => a.isAlarm && !a.status.includes('WARN')).length;
   
-  const dangerAreasList = filteredAreas.filter(a => a.isAlarm && (a.status === 'Critical' || a.status === 'Broken Cable' || a.status === 'Alarm'));
+  const dangerAreasList = filteredAreas.filter(a => a.isAlarm && !a.status.includes('WARN'));
   const unackedAlarms = dangerAreasList.filter(a => !ackedAlarms.has(a.id));
   
   // Cleanup acked alarms that are no longer in danger
@@ -372,8 +379,8 @@ export default function Dashboard() {
           <SegmentStats 
             totalSegments={totalSegments}
             normalSegments={normalSegments}
-            highTempSegments={highTempSegments}
-            fiberBreakSegments={fiberBreakSegments}
+            warningSegments={warningSegments}
+            dangerSegments={dangerSegments}
             onCategoryClick={setCategoryModal}
           />
           <LeftPanel 
@@ -426,8 +433,8 @@ export default function Dashboard() {
             areas={baseAreas.filter(a => {
               if (categoryModal === 'Total') return true;
               if (categoryModal === 'Normal') return a.status === 'Normal';
-              if (categoryModal === 'HighTemp') return a.status === 'Warning' || a.status === 'Critical';
-              if (categoryModal === 'FiberBreak') return a.status === 'Broken Cable';
+              if (categoryModal === 'Warning') return a.status.includes('WARN');
+              if (categoryModal === 'Danger') return a.isAlarm && !a.status.includes('WARN');
               return false;
             })}
             setSelectedSegment={(seg) => {

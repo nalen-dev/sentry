@@ -3,19 +3,19 @@ import { Activity } from 'lucide-react';
 interface SegmentStatsProps {
   totalSegments: number;
   normalSegments: number;
-  highTempSegments: number;
-  fiberBreakSegments: number;
-  onCategoryClick: (category: 'Total' | 'Normal' | 'HighTemp' | 'FiberBreak') => void;
+  warningSegments: number;
+  dangerSegments: number;
+  onCategoryClick: (category: 'Total' | 'Normal' | 'Warning' | 'Danger') => void;
 }
 
 export default function SegmentStats({
   totalSegments,
   normalSegments,
-  highTempSegments,
-  fiberBreakSegments,
+  warningSegments,
+  dangerSegments,
   onCategoryClick
 }: SegmentStatsProps) {
-  const isDanger = highTempSegments > 0 || fiberBreakSegments > 0;
+  const isDanger = dangerSegments > 0;
   
   return (
     <div className={`bg-bg-panel/95 backdrop-blur-md border rounded-xl p-4 shadow-lg pointer-events-auto shrink-0 flex flex-col transition-colors duration-300 ${
@@ -40,18 +40,18 @@ export default function SegmentStats({
           <span className="text-[9px] text-text-secondary uppercase font-bold tracking-widest mt-1">Normal</span>
         </div>
         <div 
-          onClick={() => onCategoryClick('HighTemp')}
-          className="flex flex-col bg-bg-surface hover:bg-bg-base p-2 rounded border border-orange-500/30 cursor-pointer transition-colors"
+          onClick={() => onCategoryClick('Warning')}
+          className="flex flex-col bg-bg-surface hover:bg-bg-base p-2 rounded border border-border cursor-pointer transition-colors"
         >
-          <span className="text-lg font-mono font-bold text-orange-500">{highTempSegments}</span>
-          <span className="text-[8px] text-orange-400 uppercase font-bold tracking-widest mt-1">High Temp</span>
+          <span className="text-lg font-mono font-bold text-yellow-500">{warningSegments}</span>
+          <span className="text-[9px] text-text-secondary uppercase font-bold tracking-widest mt-1">Warn</span>
         </div>
         <div 
-          onClick={() => onCategoryClick('FiberBreak')}
+          onClick={() => onCategoryClick('Danger')}
           className="flex flex-col bg-bg-alarm/50 hover:bg-bg-alarm/80 p-2 rounded border border-red-500/30 cursor-pointer transition-colors"
         >
-          <span className="text-lg font-mono font-bold text-red-500">{fiberBreakSegments}</span>
-          <span className="text-[8px] text-red-400 uppercase font-bold tracking-widest mt-1">Fiber Break</span>
+          <span className="text-lg font-mono font-bold text-red-500">{dangerSegments}</span>
+          <span className="text-[9px] text-red-400 uppercase font-bold tracking-widest mt-1">Danger</span>
         </div>
       </div>
     </div>

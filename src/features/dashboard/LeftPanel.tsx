@@ -102,10 +102,17 @@ export default function LeftPanel({
                   : 'bg-bg-panel/95 border-border hover:bg-bg-surface'}`}
             >
               <div className="flex justify-between items-start mb-2">
-                <span className={`font-bold text-base drop-shadow-md ${area.isAlarm ? 'text-red-400' : 'text-text-primary'}`}>
-                  {area.name}
-                </span>
-                {area.isAlarm && <AlertTriangle size={14} className="text-scada-alert animate-pulse" />}
+                <div className="flex flex-col">
+                  <span className={`font-bold text-base drop-shadow-md ${area.isAlarm ? 'text-red-400' : 'text-text-primary'}`}>
+                    {area.name}
+                  </span>
+                  {area.isAlarm && (
+                    <span className="text-[10px] font-bold font-mono tracking-wider mt-1 px-2 py-0.5 rounded bg-red-500/20 text-red-400 w-fit">
+                      {area.status}
+                    </span>
+                  )}
+                </div>
+                {area.isAlarm && <AlertTriangle size={14} className="text-scada-alert animate-pulse shrink-0" />}
               </div>
               <div className="flex justify-between items-end mt-auto pt-2">
                 <span className="text-sm font-semibold text-text-primary drop-shadow-md">
