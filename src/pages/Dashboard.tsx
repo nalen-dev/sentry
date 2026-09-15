@@ -9,6 +9,7 @@ import DiagramVisualization from '../features/map/DiagramVisualization';
 import TopNavbar from '../components/layout/TopNavbar';
 import LogPanel from '../features/dashboard/LogPanel';
 import LeftPanel from '../features/dashboard/LeftPanel';
+import SegmentStats from '../features/dashboard/SegmentStats';
 import RightPanel from '../features/dashboard/RightPanel';
 import DataModal from '../features/dashboard/DataModal';
 
@@ -68,9 +69,10 @@ export default function Dashboard() {
   const [selectedSegment, setSelectedSegment] = useState<SegmentData | null>(null);
   
   const [showDataModal, setShowDataModal] = useState(false);
+  const [categoryModal, setCategoryModal] = useState<'Total' | 'Normal' | 'Warning' | 'Danger' | null>(null);
 
   // Pagination for Left Panel
-  const itemsPerPage = 7;
+  const itemsPerPage = isFullscreen ? 2 : 4;
   const [currentPage, setCurrentPage] = useState(1);
   const [warningThreshold, setWarningThreshold] = useState(45);
   const [criticalThreshold, setCriticalThreshold] = useState(60);
@@ -368,6 +370,13 @@ export default function Dashboard() {
 
         {/* FLOATING LEFT PANEL - AREA LIST */}
         <aside className={`absolute top-4 left-4 ${isFullscreen ? 'w-72 bottom-auto' : 'w-96 bottom-[90px]'} flex flex-col z-20 pointer-events-none space-y-4 transition-all duration-500`}>
+          <SegmentStats 
+            totalSegments={totalSegments}
+            normalSegments={normalSegments}
+            warningSegments={warningSegments}
+            dangerSegments={dangerSegments}
+            onCategoryClick={setCategoryModal}
+          />
           <LeftPanel 
             isFullscreen={isFullscreen}
             searchTerm={searchTerm}
@@ -386,13 +395,7 @@ export default function Dashboard() {
             setActiveSubGroup={setActiveSubGroup}
           />
           {!isFullscreen && (
-            <RightPanel 
-              totalSegments={totalSegments}
-              normalSegments={normalSegments}
-              warningSegments={warningSegments}
-              dangerSegments={dangerSegments}
-              filteredAreas={filteredAreas}
-            />
+            <RightPanel />
           )}
         </aside>
 
@@ -414,6 +417,23 @@ export default function Dashboard() {
             onClose={() => setShowDataModal(false)}
             areas={baseAreas}
             setSelectedSegment={setSelectedSegment}
+          />
+        )}
+        
+        {/* CATEGORY DATA MODAL */}
+        {categoryModal && (
+          <DataModal 
+            onClose={() => setCategoryModal(null)}
+            areas={baseAreas.filter(a => {
+              if (categoryModal === 'Total') return true;
+              if (categoryModal === 'Normal') return a.status === 'Normal';
+              if (categoryModal === 'Warning') return a.status === 'Warning';
+              return a.isAlarm; // Danger
+            })}
+            setSelectedSegment={(seg) => {
+               setCategoryModal(null);
+               setSelectedSegment(seg);
+            }}
           />
         )}
 
