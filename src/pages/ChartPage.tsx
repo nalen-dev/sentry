@@ -127,7 +127,7 @@ export default function ChartPage() {
             if (s.end_m !== null && s.end_m > maxM) maxM = s.end_m;
           });
           
-          const curve: any[] = await invoke('get_segment_curve', { dtsCh: ch });
+          const curve: any[] = await invoke('get_segment_curve', { dts_ch: ch });
           
           if (!isMounted) return;
           

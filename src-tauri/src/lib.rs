@@ -406,13 +406,14 @@ async fn get_groups_history(
                 // Round time to nearest minute to group them easily, or just use HH:MM
                 let t_str = ct.format("%H:%M").to_string();
                 let temp = r.TempAvg.unwrap_or(0) as f32 / 10.0;
-                
-                group_data
-                    .entry(map.main_group.clone())
-                    .or_default()
-                    .entry(t_str)
-                    .or_default()
-                    .push(temp);
+                if temp >= 0.0 {
+                    group_data
+                        .entry(map.main_group.clone())
+                        .or_default()
+                        .entry(t_str)
+                        .or_default()
+                        .push(temp);
+                }
             }
         }
     }
