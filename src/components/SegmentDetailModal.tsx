@@ -60,7 +60,7 @@ export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename
         if (!segment.dts_ch || !segment.dts_code) return;
         try {
           if (chartMode === 'history') {
-            const data = await invoke<any[]>('get_segment_history', { dtsCh: segment.dts_ch, dtsCode: segment.dts_code, limit: 180 });
+            const data = await invoke<any[]>('get_segment_history', { dtsCh: segment.dts_ch, dtsCode: segment.dts_code, minutes: 30 });
             if (isMounted) setChartData(data);
           } else {
             // Distance curve
@@ -216,12 +216,12 @@ export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename
                    <RechartsLineChart data={chartData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
                      <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} />
                      <XAxis dataKey={chartMode === 'history' ? 'time' : 'distance'} stroke="#9ca3af" fontSize={12} tickMargin={10} />
-                     <YAxis stroke="#9ca3af" fontSize={12} domain={['dataMin - 10', 'dataMax + 10']} />
+                     <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
                      <RechartsTooltip 
                        contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
                        itemStyle={{ color: 'var(--scada-primary)' }}
                      />
-                     <Line type="monotone" dataKey="temp" stroke="var(--scada-primary)" strokeWidth={2} dot={false} activeDot={{ r: 6, fill: 'var(--scada-primary)' }} />
+                     <Line type="monotone" dataKey="temp" stroke="var(--scada-primary)" strokeWidth={2} dot={false} activeDot={{ r: 6, fill: 'var(--scada-primary)' }} connectNulls={true} />
                    </RechartsLineChart>
                  </ResponsiveContainer>
               </div>

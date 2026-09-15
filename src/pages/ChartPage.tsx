@@ -64,8 +64,8 @@ export default function ChartPage() {
         setLoading(true);
         
         if (chartMode === 'history') {
-          const limit = selectedTimeRange === '30m' ? 180 : selectedTimeRange === '1h' ? 360 : selectedTimeRange === '6h' ? 2160 : 180;
-          const data: any[] = await invoke('get_groups_history', { limit });
+          const minutes = selectedTimeRange === '30m' ? 30 : selectedTimeRange === '1h' ? 60 : selectedTimeRange === '6h' ? 360 : 30;
+          const data: any[] = await invoke('get_groups_history', { minutes });
           
           if (!isMounted) return;
           
@@ -303,7 +303,7 @@ export default function ChartPage() {
               <LineChart data={histData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} vertical={false} />
                 <XAxis dataKey="time" stroke="#9ca3af" fontSize={12} tickMargin={10} />
-                <YAxis stroke="#9ca3af" fontSize={12} domain={['dataMin - 5', 'dataMax + 5']} />
+                <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
                   itemStyle={{ fontWeight: 'bold' }}
@@ -314,7 +314,7 @@ export default function ChartPage() {
                 <ReferenceLine y={60} stroke="#ef4444" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'WARNING THRESHOLD', fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }} />
                 
                 {histGroups.map((name, i) => (
-                  <Line key={name} type="monotone" dataKey={name} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} activeDot={{ r: 6, strokeWidth: 0 }} />
+                  <Line key={name} type="monotone" dataKey={name} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} activeDot={{ r: 6, strokeWidth: 0 }} connectNulls={true} />
                 ))}
               </LineChart>
             ) : (

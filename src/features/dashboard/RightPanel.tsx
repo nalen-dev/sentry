@@ -29,7 +29,7 @@ export default function RightPanel({
     import('@tauri-apps/api/core').then(({ invoke }) => {
       const fetchHistory = async () => {
         try {
-          const data: any[] = await invoke('get_groups_history', { limit: 180 });
+          const data: any[] = await invoke('get_groups_history', { minutes: 30 });
           if (!isMounted) return;
           
           if (data.length === 0) {
@@ -102,7 +102,7 @@ export default function RightPanel({
             <LineChart data={historyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} vertical={false} />
                 <XAxis dataKey="time" stroke="#9ca3af" fontSize={10} tickMargin={5} />
-                <YAxis stroke="#9ca3af" fontSize={10} domain={['dataMin - 5', 'dataMax + 5']} />
+                <YAxis stroke="#9ca3af" fontSize={10} domain={[0, 100]} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '10px' }}
                   itemStyle={{ fontWeight: 'bold' }}
@@ -113,7 +113,7 @@ export default function RightPanel({
                 <ReferenceLine y={60} stroke="#ef4444" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'WARN', fill: '#ef4444', fontSize: 9, fontWeight: 'bold' }} />
                 
                 {histGroups.map((name, i) => (
-                  <Line key={name} type="monotone" dataKey={name} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                  <Line key={name} type="monotone" dataKey={name} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} connectNulls={true} />
                 ))}
             </LineChart>
           </ResponsiveContainer>
