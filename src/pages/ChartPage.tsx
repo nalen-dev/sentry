@@ -30,6 +30,7 @@ export default function ChartPage() {
   
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [stats, setStats] = useState({ max: 0, avg: 0, min: 0 });
 
   useEffect(() => {
@@ -161,6 +162,7 @@ export default function ChartPage() {
         console.error(err);
         if (isMounted) {
           setHasError(true);
+          setErrorMessage(typeof err === 'string' ? err : JSON.stringify(err));
           setLoading(false);
         }
       }
@@ -289,7 +291,7 @@ export default function ChartPage() {
             <div className="flex-1 flex items-center justify-center font-mono text-scada-primary animate-pulse tracking-widest font-bold">LOADING DATA...</div>
           ) : (!loading && hasError) ? (
             <div className="flex-1 flex items-center justify-center font-mono text-red-500 tracking-widest font-bold animate-pulse text-center">
-              CONNECTION ERROR.<br/>RETRYING...
+              CONNECTION ERROR.<br/>RETRYING...<br/><span className="text-xs text-red-400 mt-2 block">{errorMessage}</span>
             </div>
           ) : (!loading && !hasError && chartMode === 'history' && histData.length === 0) || (!loading && !hasError && chartMode === 'spatial' && spatialData.length === 0) ? (
             <div className="flex-1 flex items-center justify-center font-mono text-red-400 tracking-widest font-bold text-center">
