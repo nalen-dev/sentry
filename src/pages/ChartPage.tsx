@@ -64,8 +64,8 @@ export default function ChartPage() {
         setLoading(true);
         
         if (chartMode === 'history') {
-          const minutes = selectedTimeRange === '30m' ? 30 : selectedTimeRange === '1h' ? 60 : selectedTimeRange === '6h' ? 360 : 30;
-          const data: any[] = await invoke('get_groups_history', { minutes });
+          const limit = selectedTimeRange === '30m' ? 180 : selectedTimeRange === '1h' ? 360 : selectedTimeRange === '6h' ? 2160 : 180;
+          const data: any[] = await invoke('get_groups_history', { limit });
           
           if (!isMounted) return;
           

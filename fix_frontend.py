@@ -1,4 +1,26 @@
-import { useState, useEffect } from 'react';
+import re
+
+# 1. Fix ChartPage.tsx
+with open('src/pages/ChartPage.tsx', 'r') as f:
+    cp = f.read()
+cp = cp.replace(
+    "const minutes = selectedTimeRange === '30m' ? 30 : selectedTimeRange === '1h' ? 60 : selectedTimeRange === '6h' ? 360 : 30;\n          const data: any[] = await invoke('get_groups_history', { minutes });",
+    "const limit = selectedTimeRange === '30m' ? 180 : selectedTimeRange === '1h' ? 360 : selectedTimeRange === '6h' ? 2160 : 180;\n          const data: any[] = await invoke('get_groups_history', { limit });"
+)
+with open('src/pages/ChartPage.tsx', 'w') as f:
+    f.write(cp)
+
+
+# 2. Fix SegmentDetailModal.tsx
+with open('src/components/SegmentDetailModal.tsx', 'r') as f:
+    sm = f.read()
+sm = sm.replace("minutes: 30", "limit: 180")
+with open('src/components/SegmentDetailModal.tsx', 'w') as f:
+    f.write(sm)
+
+
+# 3. Rewrite RightPanel.tsx to match ChartPage.tsx exactly (no toggle)
+right_panel_content = """import { useState, useEffect } from 'react';
 import { Activity, LineChart as LineChartIcon } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { useNavigate } from 'react-router-dom';
@@ -122,3 +144,8 @@ export default function RightPanel({
     </>
   );
 }
+"""
+
+with open('src/features/dashboard/RightPanel.tsx', 'w') as f:
+    f.write(right_panel_content)
+
