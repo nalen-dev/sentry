@@ -18,6 +18,7 @@ export default function ChartPage() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [lines, setLines] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const [stats, setStats] = useState({ max: 0, avg: 0, min: 0 });
 
   useEffect(() => {
@@ -87,11 +88,15 @@ export default function ChartPage() {
             });
           });
           setStats({ max: max === -999 ? 0 : max, min: min === 999 ? 0 : min, avg: count ? sum / count : 0 });
+          setHasError(false);
           setLoading(false);
         }
       } catch (err) {
         console.error(err);
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setHasError(true);
+          setLoading(false);
+        }
       }
     };
     
@@ -194,7 +199,11 @@ export default function ChartPage() {
         <div className="flex-1 bg-bg-panel border border-border rounded-xl p-6 shadow-sm flex flex-col min-h-[400px]">
           {loading && chartData.length === 0 ? (
             <div className="flex-1 flex items-center justify-center font-mono text-scada-primary animate-pulse tracking-widest font-bold">LOADING HISTORICAL DATA...</div>
-          ) : (!loading && chartData.length === 0) ? (
+          ) : (!loading && hasError && chartData.length === 0) ? (
+            <div className="flex-1 flex items-center justify-center font-mono text-red-500 tracking-widest font-bold animate-pulse text-center">
+              CONNECTION ERROR.<br/>RETRYING...
+            </div>
+          ) : (!loading && !hasError && chartData.length === 0) ? (
             <div className="flex-1 flex items-center justify-center font-mono text-red-400 tracking-widest font-bold text-center">
               NO SEGMENTS FOUND.<br/>PLEASE SYNC FROM DTS IN SETTINGS.
             </div>

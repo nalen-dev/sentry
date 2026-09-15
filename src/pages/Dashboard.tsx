@@ -58,6 +58,7 @@ export default function Dashboard() {
   const [mappings, setMappings] = useState<LiveSegment[]>([]);
   const [alarms, setAlarms] = useState<AlarmLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const [activeMainGroup, setActiveMainGroup] = useState<string>('All');
   const [activeSubGroup, setActiveSubGroup] = useState<string>('All');
 
@@ -80,9 +81,11 @@ export default function Dashboard() {
           ]).then(([m, a]) => {
             setMappings(m);
             setAlarms(a);
+            setHasError(false);
             setIsLoading(false);
           }).catch(err => {
             console.error("Failed to load live data", err);
+            setHasError(true);
             setIsLoading(false);
           });
         });
@@ -209,8 +212,15 @@ export default function Dashboard() {
         userId={userId}
       />
 
+
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 relative overflow-hidden bg-bg-base flex">
+        
+        {hasError && (
+          <div className="absolute top-0 left-0 right-0 z-50 bg-red-500/90 text-white text-xs font-bold font-mono tracking-widest text-center py-1">
+            CONNECTION ERROR TO DTS MYSQL. RETRYING...
+          </div>
+        )}
         {isLoading && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-bg-base/80 backdrop-blur-sm">
             <div className="flex flex-col items-center">
@@ -220,7 +230,7 @@ export default function Dashboard() {
           </div>
         )}
         
-        {!isLoading && mappings.length === 0 && (
+        {!isLoading && !hasError && mappings.length === 0 && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-bg-base/90 backdrop-blur-md">
             <div className="flex flex-col items-center max-w-lg text-center p-8 border border-border rounded-xl bg-bg-panel shadow-2xl">
               <Layout size={48} className="text-text-secondary mb-4" />
