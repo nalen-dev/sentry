@@ -379,7 +379,7 @@ pub struct GroupHistoryPoint {
 
 #[tauri::command]
 async fn get_groups_history(
-    limit: i32,
+    minutes: i32,
     state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
 ) -> Result<Vec<GroupHistoryPoint>, String> {
     // 1. Get mappings from SQLite
@@ -395,14 +395,21 @@ async fn get_groups_history(
     // GroupName -> (Time -> Vec<Temp>)
     let mut group_data: std::collections::HashMap<String, std::collections::HashMap<String, Vec<f32>>> = std::collections::HashMap::new();
     
+    let limit = minutes * 10;
+    
     for map in mappings {
         let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
             .bind(map.dts_ch).bind(map.dts_code).bind(limit)
             .fetch_all(&mysql_pool)
             .await.unwrap_or_default();
             
+        if rows.is_empty() { continue; }
+        let latest_time = rows[0].CreationTime.unwrap_or_default();
+        let cutoff_time = latest_time - chrono::Duration::minutes(minutes as i64);
+            
         for r in rows {
             if let Some(ct) = r.CreationTime {
+                if ct < cutoff_time { continue; }
                 // Round time to nearest minute to group them easily, or just use HH:MM
                 let t_str = ct.with_timezone(&chrono::Local).format("%H:%M").to_string();
                 let temp = r.TempAvg.unwrap_or(0) as f32 / 10.0;

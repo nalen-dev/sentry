@@ -37,7 +37,7 @@ export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename
   const [editName, setEditName] = useState(segment.name);
   const [notes, setNotes] = useState('');
 
-  const [chartMode, setChartMode] = useState<'history' | 'distance'>('history');
+  
   const [chartData, setChartData] = useState<any[]>([]);
 
   const handleSaveRename = () => {
@@ -59,16 +59,8 @@ export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename
       const fetchData = async () => {
         if (!segment.dts_ch || !segment.dts_code) return;
         try {
-          if (chartMode === 'history') {
-            const data = await invoke<any[]>('get_segment_history', { dtsCh: segment.dts_ch, dtsCode: segment.dts_code, minutes: 30 });
-            if (isMounted) setChartData(data);
-          } else {
-            // Distance curve
-            const startM = segment.start_m || 0;
-            const endM = segment.end_m || 1000;
-            const data = await invoke<any[]>('get_segment_curve', { dtsCh: segment.dts_ch, startM, endM });
-            if (isMounted) setChartData(data);
-          }
+          const data = await invoke<any[]>('get_segment_history', { dtsCh: segment.dts_ch, dtsCode: segment.dts_code, minutes: 30 });
+          if (isMounted) setChartData(data);
         } catch (err) {
           console.error("Failed to fetch chart data", err);
         }
@@ -78,7 +70,7 @@ export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename
       const timer = setInterval(fetchData, 5000);
       return () => { isMounted = false; clearInterval(timer); };
     });
-  }, [chartMode, segment.dts_ch, segment.dts_code, segment.start_m, segment.end_m]);
+  }, [segment.dts_ch, segment.dts_code]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -204,18 +196,14 @@ export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename
             {/* Chart */}
             <div className="h-1/2 flex flex-col bg-bg-base border border-border rounded-xl p-5 shadow-inner">
               <div className="flex justify-between items-center mb-4">
-                <span className="text-xs font-bold text-text-primary uppercase tracking-widest flex items-center"><Activity size={16} className="mr-2 text-scada-primary" /> {chartMode === 'history' ? 'Temperature vs Time (History)' : 'Temperature vs Distance (Live)'}</span>
-                <div className="flex bg-bg-panel p-1 rounded-md">
-                  <button onClick={() => setChartMode('history')} className={`text-[10px] px-2 py-1 rounded transition-colors ${chartMode === 'history' ? 'bg-bg-surface text-scada-primary' : 'text-text-secondary hover:text-text-primary'}`}>TIME</button>
-                  <button onClick={() => setChartMode('distance')} className={`text-[10px] px-2 py-1 rounded transition-colors ${chartMode === 'distance' ? 'bg-bg-surface text-scada-primary' : 'text-text-secondary hover:text-text-primary'}`}>DISTANCE</button>
-                </div>
+                <span className="text-xs font-bold text-text-primary uppercase tracking-widest flex items-center"><Activity size={16} className="mr-2 text-scada-primary" /> Temperature vs Time (30m)</span>
               </div>
               
               <div className="flex-1 w-full min-h-0">
                  <ResponsiveContainer width="100%" height="100%">
                    <RechartsLineChart data={chartData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
                      <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} />
-                     <XAxis dataKey={chartMode === 'history' ? 'time' : 'distance'} stroke="#9ca3af" fontSize={12} tickMargin={10} />
+                     <XAxis dataKey="time" stroke="#9ca3af" fontSize={12} tickMargin={10} />
                      <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
                      <RechartsTooltip 
                        contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
