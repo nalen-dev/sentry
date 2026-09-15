@@ -379,7 +379,7 @@ pub struct GroupHistoryPoint {
 
 #[tauri::command]
 async fn get_groups_history(
-    limit: i32,
+    minutes: i32,
     state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
 ) -> Result<Vec<GroupHistoryPoint>, String> {
     // 1. Get mappings from SQLite
@@ -396,15 +396,15 @@ async fn get_groups_history(
     let mut group_data: std::collections::HashMap<String, std::collections::HashMap<String, Vec<f32>>> = std::collections::HashMap::new();
     
     for map in mappings {
-        let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
-            .bind(map.dts_ch).bind(map.dts_code).bind(limit)
+        let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= DATE_SUB(NOW(), INTERVAL ? MINUTE) ORDER BY CreationTime DESC")
+            .bind(map.dts_ch).bind(map.dts_code).bind(minutes)
             .fetch_all(&mysql_pool)
             .await.unwrap_or_default();
             
         for r in rows {
             if let Some(ct) = r.CreationTime {
                 // Round time to nearest minute to group them easily, or just use HH:MM
-                let t_str = ct.format("%H:%M").to_string();
+                let t_str = ct.with_timezone(&chrono::Local).format("%H:%M").to_string();
                 let temp = r.TempAvg.unwrap_or(0) as f32 / 10.0;
                 if temp >= 0.0 {
                     group_data
@@ -430,11 +430,7 @@ async fn get_groups_history(
     let mut sorted_times: Vec<String> = all_times.into_iter().collect();
     sorted_times.sort();
     
-    // Keep only the last `limit` times globally
-    if sorted_times.len() > limit as usize {
-        let skip = sorted_times.len() - limit as usize;
-        sorted_times = sorted_times.into_iter().skip(skip).collect();
-    }
+
     
     let mut results = Vec::new();
     for t in sorted_times {
@@ -487,7 +483,7 @@ async fn get_alarms(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::Sta
         
     let mut alarms = Vec::new();
     for r in rows {
-        let t = r.CreationTime.map(|ct| ct.format("%H:%M:%S").to_string()).unwrap_or_default();
+        let t = r.CreationTime.map(|ct| ct.with_timezone(&chrono::Local).format("%H:%M:%S").to_string()).unwrap_or_default();
         let is_active = r.AlarmResetTime.is_none();
         alarms.push(AlarmLog {
             id: r.ID, time: t, ch: r.Ch.unwrap_or(0), code: r.Code.unwrap_or(0),

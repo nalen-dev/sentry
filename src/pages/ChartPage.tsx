@@ -64,8 +64,8 @@ export default function ChartPage() {
         setLoading(true);
         
         if (chartMode === 'history') {
-          const limit = selectedTimeRange === '30m' ? 30 : selectedTimeRange === '1h' ? 60 : selectedTimeRange === '6h' ? 360 : 30;
-          const data: any[] = await invoke('get_groups_history', { limit });
+          const minutes = selectedTimeRange === '30m' ? 30 : selectedTimeRange === '1h' ? 60 : selectedTimeRange === '6h' ? 360 : 30;
+          const data: any[] = await invoke('get_groups_history', { minutes });
           
           if (!isMounted) return;
           
@@ -131,7 +131,7 @@ export default function ChartPage() {
           const safeMin = minM === 999999 ? 0 : minM;
           const safeMax = maxM === 0 ? 999999 : maxM;
           
-          const curve: any[] = await invoke('get_segment_curve', { dts_ch: ch, start_m: safeMin, end_m: safeMax });
+          const curve: any[] = await invoke('get_segment_curve', { dtsCh: ch, startM: safeMin, endM: safeMax });
           
           if (!isMounted) return;
           
