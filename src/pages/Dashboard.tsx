@@ -59,6 +59,7 @@ export default function Dashboard() {
   const [alarms, setAlarms] = useState<AlarmLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [activeMainGroup, setActiveMainGroup] = useState<string>('All');
   const [activeSubGroup, setActiveSubGroup] = useState<string>('All');
 
@@ -86,6 +87,7 @@ export default function Dashboard() {
           }).catch(err => {
             console.error("Failed to load live data", err);
             setHasError(true);
+            setErrorMessage(typeof err === 'string' ? err : JSON.stringify(err));
             setIsLoading(false);
           });
         });
@@ -218,7 +220,7 @@ export default function Dashboard() {
         
         {hasError && (
           <div className="absolute top-0 left-0 right-0 z-50 bg-red-500/90 text-white text-xs font-bold font-mono tracking-widest text-center py-1">
-            CONNECTION ERROR TO DTS MYSQL. RETRYING...
+            CONNECTION ERROR TO DTS MYSQL. RETRYING... ({errorMessage})
           </div>
         )}
         {isLoading && (
