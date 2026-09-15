@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Map as MapIcon, Layout, Maximize2, Minimize2 } from 'lucide-react';
 import SegmentDetailModal, { SegmentData } from '../components/SegmentDetailModal';
+import AlarmPopup from '../components/AlarmPopup';
 
 // Components
 import MapVisualization from '../features/map/MapVisualization';
@@ -73,6 +74,8 @@ export default function Dashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [warningThreshold, setWarningThreshold] = useState(45);
   const [criticalThreshold, setCriticalThreshold] = useState(60);
+  const [ackedAlarms, setAckedAlarms] = useState<Set<number>>(new Set());
+  const [isPopupMuted, setIsPopupMuted] = useState(false);
 
     useEffect(() => {
     import('@tauri-apps/api/core').then(({ invoke }) => {
@@ -226,6 +229,32 @@ export default function Dashboard() {
   const normalSegments = totalSegments - alarmSegments;
   const warningSegments = Math.floor(alarmSegments * 0.3);
   const dangerSegments = alarmSegments - warningSegments;
+  
+  const dangerAreasList = filteredAreas.filter(a => a.isAlarm && (a.status === 'Critical' || a.status === 'Broken Cable' || a.status === 'Alarm'));
+  const unackedAlarms = dangerAreasList.filter(a => !ackedAlarms.has(a.id));
+  
+  // Cleanup acked alarms that are no longer in danger
+  useEffect(() => {
+    if (dangerAreasList.length === 0 && ackedAlarms.size > 0) {
+       setAckedAlarms(new Set());
+    } else if (ackedAlarms.size > 0) {
+       const newAcked = new Set(ackedAlarms);
+       let changed = false;
+       for (const id of ackedAlarms) {
+         if (!dangerAreasList.find(a => a.id === id)) {
+           newAcked.delete(id);
+           changed = true;
+         }
+       }
+       if (changed) setAckedAlarms(newAcked);
+    }
+  }, [dangerAreasList, ackedAlarms]);
+  
+  useEffect(() => {
+     if (unackedAlarms.length > 0) {
+        setIsPopupMuted(false); // Unmute when new unacked alarm arrives
+     }
+  }, [unackedAlarms.map(a => a.id).join(',')]);
 
   return (
     <div className="h-screen bg-bg-base flex flex-col text-text-primary overflow-hidden font-sans">
@@ -388,6 +417,19 @@ export default function Dashboard() {
           />
         )}
 
+        {/* ALARM POPUP */}
+        {!isPopupMuted && unackedAlarms.length > 0 && (
+          <AlarmPopup 
+            unackedAlarms={unackedAlarms}
+            onAck={(ids) => {
+              const newAcked = new Set(ackedAlarms);
+              ids.forEach(id => newAcked.add(id));
+              setAckedAlarms(newAcked);
+            }}
+            onCancel={() => setIsPopupMuted(true)}
+          />
+        )}
+        
         {/* SEGMENT DETAIL MODAL */}
         {selectedSegment && (
           <SegmentDetailModal 

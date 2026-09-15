@@ -144,11 +144,8 @@ export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename
               
               <div className="pt-4 border-t border-border/50 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><Thermometer size={14} className="mr-2" /> Max Temp</span>
-                  <div className="text-right">
-                    <span className="text-red-400 font-mono font-bold">{segment.temp_max ?? '-'}°C</span>
-                    <p className="text-[10px] text-text-secondary font-mono">at {segment.temp_max_p ?? '-'}m</p>
-                  </div>
+                  <span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><Thermometer size={14} className="mr-2" /> Avg Temp</span>
+                  <span className="text-text-primary font-mono font-bold">{segment.temp_avg ?? '-'}°C</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><Thermometer size={14} className="mr-2" /> Min Temp</span>
@@ -158,8 +155,11 @@ export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><Thermometer size={14} className="mr-2" /> Avg Temp</span>
-                  <span className="text-scada-primary font-mono font-bold text-lg">{segment.temp_avg ?? segment.temp}°C</span>
+                  <span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><Thermometer size={14} className="mr-2" /> Max Temp</span>
+                  <div className="text-right">
+                    <span className="text-scada-primary font-mono font-bold text-lg">{segment.temp_max ?? segment.temp}°C</span>
+                    <p className="text-[10px] text-text-secondary font-mono">at {segment.temp_max_p ?? '-'}m</p>
+                  </div>
                 </div>
               </div>
             </div>

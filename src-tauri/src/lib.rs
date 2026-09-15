@@ -459,9 +459,8 @@ async fn get_groups_history(
         let mut groups_map = std::collections::HashMap::new();
         for (g_name, times_map) in &group_data {
             if let Some(temps) = times_map.get(&t) {
-                let sum: f32 = temps.iter().sum();
-                let avg = sum / temps.len() as f32;
-                groups_map.insert(g_name.clone(), avg);
+                let max_temp = temps.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+                groups_map.insert(g_name.clone(), max_temp);
             }
         }
         results.push(GroupHistoryPoint { time: t, groups: groups_map });
