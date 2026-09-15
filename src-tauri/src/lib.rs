@@ -335,23 +335,15 @@ pub struct HistoryPoint {
 async fn get_segment_history(
     dts_ch: i32,
     dts_code: i32,
-    limit: i32,
+    minutes: i32,
     state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
 ) -> Result<Vec<HistoryPoint>, String> {
-    let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
-        .fetch_all(&*state).await.map_err(|e| e.to_string())?;
-        
-    let mut db_host = String::from("192.168.1.64");
-    let mut db_port = String::from("58329");
-    let mut db_user = String::from("root");
-    let mut db_pass = String::from("l0mY4cH9H?h9");
-    let mut db_name = String::from("dtscontroler");
-    for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
-    
     let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     #[derive(sqlx::FromRow)]
     #[allow(non_snake_case)]
     struct HistRow { CreationTime: Option<chrono::DateTime<chrono::Utc>>, TempAvg: Option<i32> }
+    
+    let limit = minutes * 10;
     
     let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
         .bind(dts_ch).bind(dts_code).bind(limit)
@@ -359,12 +351,20 @@ async fn get_segment_history(
         .await.map_err(|e| e.to_string())?;
         
     let mut points = Vec::new();
-    for r in rows.into_iter().rev() { // reverse so oldest is first in chart
+    if rows.is_empty() { return Ok(points); }
+    let latest_time = rows[0].CreationTime.unwrap_or_default();
+    let cutoff_time = latest_time - chrono::Duration::minutes(minutes as i64);
+    
+    for r in rows.into_iter().rev() {
         if let Some(ct) = r.CreationTime {
-            points.push(HistoryPoint { 
-                time: ct.format("%H:%M:%S").to_string(), 
-                temp: r.TempAvg.unwrap_or(0) as f32 / 10.0 
-            });
+            if ct < cutoff_time { continue; }
+            let temp = r.TempAvg.unwrap_or(0) as f32 / 10.0;
+            if temp >= 0.0 {
+                points.push(HistoryPoint { 
+                    time: ct.with_timezone(&chrono::Local).format("%H:%M").to_string(), 
+                    temp 
+                });
+            }
         }
     }
     Ok(points)
@@ -382,51 +382,66 @@ async fn get_groups_history(
     minutes: i32,
     state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
 ) -> Result<Vec<GroupHistoryPoint>, String> {
-    // 1. Get mappings from SQLite
     let mappings: Vec<crate::domain::app_models::SegmentMapping> = sqlx::query_as("SELECT * FROM segment_mappings WHERE main_group != 'Unassigned'")
         .fetch_all(&*state).await.map_err(|e| e.to_string())?;
         
     let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     
-    #[derive(sqlx::FromRow)]
+    #[derive(sqlx::FromRow, Clone)]
     #[allow(non_snake_case)]
-    struct HistRow { CreationTime: Option<chrono::DateTime<chrono::Utc>>, TempAvg: Option<i32> }
-    
-    // GroupName -> (Time -> Vec<Temp>)
-    let mut group_data: std::collections::HashMap<String, std::collections::HashMap<String, Vec<f32>>> = std::collections::HashMap::new();
+    struct HistRow { CreationTime: Option<chrono::DateTime<chrono::Utc>>, TempAvg: Option<i32>, Ch: i32, Code: i32 }
     
     let limit = minutes * 10;
     
+    struct FetchedSeg {
+        group: String,
+        rows: Vec<HistRow>,
+    }
+    
+    let mut all_fetched: Vec<FetchedSeg> = Vec::new();
+    let mut global_max_time: Option<chrono::DateTime<chrono::Utc>> = None;
+    
     for map in mappings {
-        let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
+        let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
             .bind(map.dts_ch).bind(map.dts_code).bind(limit)
             .fetch_all(&mysql_pool)
             .await.unwrap_or_default();
             
-        if rows.is_empty() { continue; }
-        let latest_time = rows[0].CreationTime.unwrap_or_default();
-        let cutoff_time = latest_time - chrono::Duration::minutes(minutes as i64);
-            
-        for r in rows {
-            if let Some(ct) = r.CreationTime {
-                if ct < cutoff_time { continue; }
-                // Round time to nearest minute to group them easily, or just use HH:MM
-                let t_str = ct.with_timezone(&chrono::Local).format("%H:%M").to_string();
-                let temp = r.TempAvg.unwrap_or(0) as f32 / 10.0;
-                if temp >= 0.0 {
-                    group_data
-                        .entry(map.main_group.clone())
-                        .or_default()
-                        .entry(t_str)
-                        .or_default()
-                        .push(temp);
+        if !rows.is_empty() {
+            if let Some(ct) = rows[0].CreationTime {
+                if global_max_time.is_none() || ct > global_max_time.unwrap() {
+                    global_max_time = Some(ct);
+                }
+            }
+        }
+        all_fetched.push(FetchedSeg { group: map.main_group.clone(), rows });
+    }
+    
+    let mut group_data: std::collections::HashMap<String, std::collections::HashMap<String, Vec<f32>>> = std::collections::HashMap::new();
+    
+    if let Some(max_time) = global_max_time {
+        let cutoff_time = max_time - chrono::Duration::minutes(minutes as i64);
+        
+        for seg in all_fetched {
+            for r in seg.rows {
+                if let Some(ct) = r.CreationTime {
+                    if ct < cutoff_time { continue; }
+                    
+                    let t_str = ct.with_timezone(&chrono::Local).format("%H:%M").to_string();
+                    let temp = r.TempAvg.unwrap_or(0) as f32 / 10.0;
+                    if temp >= 0.0 {
+                        group_data
+                            .entry(seg.group.clone())
+                            .or_default()
+                            .entry(t_str)
+                            .or_default()
+                            .push(temp);
+                    }
                 }
             }
         }
     }
     
-    // Now aggregate into Vec<GroupHistoryPoint>
-    // First, collect all unique times
     let mut all_times = std::collections::HashSet::new();
     for times in group_data.values() {
         for t in times.keys() {
