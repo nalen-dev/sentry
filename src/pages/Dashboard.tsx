@@ -69,7 +69,7 @@ export default function Dashboard() {
   const [selectedSegment, setSelectedSegment] = useState<SegmentData | null>(null);
   
   const [showDataModal, setShowDataModal] = useState(false);
-  const [categoryModal, setCategoryModal] = useState<'Total' | 'Normal' | 'Warning' | 'Danger' | null>(null);
+  const [categoryModal, setCategoryModal] = useState<'Total' | 'Normal' | 'HighTemp' | 'FiberBreak' | null>(null);
 
   // Pagination for Left Panel
   const itemsPerPage = isFullscreen ? 2 : 4;
@@ -227,10 +227,9 @@ export default function Dashboard() {
 
   // Stats
   const totalSegments = baseAreas.length;
-  const alarmSegments = baseAreas.filter(a => a.isAlarm).length;
-  const normalSegments = totalSegments - alarmSegments;
-  const warningSegments = Math.floor(alarmSegments * 0.3);
-  const dangerSegments = alarmSegments - warningSegments;
+  const normalSegments = baseAreas.filter(a => a.status === 'Normal').length;
+  const highTempSegments = baseAreas.filter(a => a.status === 'Warning' || a.status === 'Critical').length;
+  const fiberBreakSegments = baseAreas.filter(a => a.status === 'Broken Cable').length;
   
   const dangerAreasList = filteredAreas.filter(a => a.isAlarm && (a.status === 'Critical' || a.status === 'Broken Cable' || a.status === 'Alarm'));
   const unackedAlarms = dangerAreasList.filter(a => !ackedAlarms.has(a.id));
@@ -373,8 +372,8 @@ export default function Dashboard() {
           <SegmentStats 
             totalSegments={totalSegments}
             normalSegments={normalSegments}
-            warningSegments={warningSegments}
-            dangerSegments={dangerSegments}
+            highTempSegments={highTempSegments}
+            fiberBreakSegments={fiberBreakSegments}
             onCategoryClick={setCategoryModal}
           />
           <LeftPanel 
@@ -427,8 +426,9 @@ export default function Dashboard() {
             areas={baseAreas.filter(a => {
               if (categoryModal === 'Total') return true;
               if (categoryModal === 'Normal') return a.status === 'Normal';
-              if (categoryModal === 'Warning') return a.status === 'Warning';
-              return a.isAlarm; // Danger
+              if (categoryModal === 'HighTemp') return a.status === 'Warning' || a.status === 'Critical';
+              if (categoryModal === 'FiberBreak') return a.status === 'Broken Cable';
+              return false;
             })}
             setSelectedSegment={(seg) => {
                setCategoryModal(null);
