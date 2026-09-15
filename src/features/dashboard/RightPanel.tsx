@@ -18,7 +18,10 @@ export default function RightPanel({}: RightPanelProps = {}) {
     import('@tauri-apps/api/core').then(({ invoke }) => {
       const fetchHistory = async () => {
         try {
-          const data: any[] = await invoke('get_groups_history', { minutes: 30 });
+          const [data, mappingsData] = await Promise.all([
+             invoke<any[]>('get_groups_history', { minutes: 30 }),
+             invoke<any[]>('get_segment_mappings')
+          ]);
           if (!isMounted) return;
           
           if (data.length === 0) {
@@ -27,6 +30,12 @@ export default function RightPanel({}: RightPanelProps = {}) {
           }
           
           const groupsSet = new Set<string>();
+          mappingsData.forEach(m => {
+            if (m.main_group && m.main_group !== 'Unassigned') {
+              groupsSet.add(m.main_group);
+            }
+          });
+          
           const flatData = data.map(pt => {
             const row: any = { time: pt.time };
             for (const [g, val] of Object.entries(pt.groups)) {

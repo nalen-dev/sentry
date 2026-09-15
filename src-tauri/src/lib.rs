@@ -429,14 +429,12 @@ async fn get_groups_history(
                     
                     let t_str = ct.with_timezone(&chrono::Local).format("%H:%M").to_string();
                     let temp = r.TempAvg.unwrap_or(0) as f32 / 10.0;
-                    if temp >= 0.0 {
-                        group_data
-                            .entry(seg.group.clone())
-                            .or_default()
-                            .entry(t_str)
-                            .or_default()
-                            .push(temp);
-                    }
+                    group_data
+                        .entry(seg.group.clone())
+                        .or_default()
+                        .entry(t_str)
+                        .or_default()
+                        .push(temp);
                 }
             }
         }

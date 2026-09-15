@@ -65,7 +65,10 @@ export default function ChartPage() {
         
         if (chartMode === 'history') {
           const minutes = selectedTimeRange === '30m' ? 30 : selectedTimeRange === '1h' ? 60 : selectedTimeRange === '6h' ? 360 : 30;
-          const data: any[] = await invoke('get_groups_history', { minutes });
+          const [data, mappingsData] = await Promise.all([
+             invoke<any[]>('get_groups_history', { minutes }),
+             invoke<any[]>('get_segment_mappings')
+          ]);
           
           if (!isMounted) return;
           
@@ -77,6 +80,12 @@ export default function ChartPage() {
           }
           
           const groupsSet = new Set<string>();
+          mappingsData.forEach(m => {
+            if (m.main_group && m.main_group !== 'Unassigned') {
+              groupsSet.add(m.main_group);
+            }
+          });
+          
           const flatData = data.map(pt => {
             const row: any = { time: pt.time };
             for (const [g, val] of Object.entries(pt.groups)) {
