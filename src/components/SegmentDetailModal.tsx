@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Image as ImageIcon, Camera, Save, Activity, MapPin, AlignLeft, Info, Thermometer, AlertTriangle, Check, Edit2 } from 'lucide-react';
+import { X, Save, Activity, MapPin, AlignLeft, Info, Thermometer, AlertTriangle, Check, Edit2 } from 'lucide-react';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 
 export interface SegmentData {
@@ -172,20 +172,7 @@ export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename
               </div>
             </div>
 
-            {/* Photo Section */}
-            <div className="p-6 border-b border-border flex flex-col">
-              <span className="text-xs font-bold text-text-secondary uppercase tracking-widest mb-3 flex items-center"><ImageIcon size={14} className="mr-2" /> Segment Photo</span>
-              <div className="w-full h-48 bg-bg-surface border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-text-secondary hover:text-scada-primary hover:border-scada-primary transition-colors cursor-pointer group">
-                {segment.photoUrl ? (
-                  <img src={segment.photoUrl} alt="Segment" className="w-full h-full object-cover rounded-xl" />
-                ) : (
-                  <>
-                    <Camera size={32} className="mb-2 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm font-bold">Add Photo</span>
-                  </>
-                )}
-              </div>
-            </div>
+
 
             {/* Admin Notes */}
             <div className="p-6 flex-1 flex flex-col min-h-[200px]">

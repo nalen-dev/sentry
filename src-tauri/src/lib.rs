@@ -335,7 +335,7 @@ pub struct HistoryPoint {
 async fn get_segment_history(
     dts_ch: i32,
     dts_code: i32,
-    limit: i32,
+    minutes: i32,
     state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
 ) -> Result<Vec<HistoryPoint>, String> {
     let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
@@ -353,8 +353,8 @@ async fn get_segment_history(
     #[allow(non_snake_case)]
     struct HistRow { CreationTime: Option<chrono::DateTime<chrono::Utc>>, TempAvg: Option<i32> }
     
-    let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
-        .bind(dts_ch).bind(dts_code).bind(limit)
+    let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= DATE_SUB(NOW(), INTERVAL ? MINUTE) ORDER BY CreationTime DESC")
+        .bind(dts_ch).bind(dts_code).bind(minutes)
         .fetch_all(&mysql_pool)
         .await.map_err(|e| e.to_string())?;
         

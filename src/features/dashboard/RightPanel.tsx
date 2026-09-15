@@ -22,31 +22,46 @@ export default function RightPanel({
   
   const [chartMode, setChartMode] = useState<'area' | 'history'>('area');
   const [historyData, setHistoryData] = useState<any[]>([]);
+  const [histGroups, setHistGroups] = useState<string[]>([]);
   
-  // Fetch history for the hottest segment if in history mode
+  // Fetch group history (like Chart Menu)
   useEffect(() => {
     let isMounted = true;
     import('@tauri-apps/api/core').then(({ invoke }) => {
       const fetchHistory = async () => {
-        if (chartMode !== 'history' || filteredAreas.length === 0) return;
-        
-        // Find hottest segment
-        const hottest = [...filteredAreas].sort((a, b) => (b.temp_avg || 0) - (a.temp_avg || 0))[0];
-        if (!hottest || !hottest.dts_ch || !hottest.dts_code) return;
+        if (chartMode !== 'history') return;
         
         try {
-          const data = await invoke<any[]>('get_segment_history', { dtsCh: hottest.dts_ch, dtsCode: hottest.dts_code, limit: 30 });
-          if (isMounted) setHistoryData(data);
+          const data: any[] = await invoke('get_groups_history', { minutes: 30 });
+          if (!isMounted) return;
+          
+          if (data.length === 0) {
+            setHistoryData([]);
+            return;
+          }
+          
+          const groupsSet = new Set<string>();
+          const flatData = data.map(pt => {
+            const row: any = { time: pt.time };
+            for (const [g, val] of Object.entries(pt.groups)) {
+              row[g] = val;
+              groupsSet.add(g);
+            }
+            return row;
+          });
+          
+          setHistGroups(Array.from(groupsSet).sort());
+          setHistoryData(flatData);
         } catch (err) {
-          console.error("Failed to fetch history for RightPanel", err);
+          console.error("Failed to fetch group history for RightPanel", err);
         }
       };
       
       fetchHistory();
-      const timer = setInterval(fetchHistory, 5000);
+      const timer = setInterval(fetchHistory, 10000);
       return () => { isMounted = false; clearInterval(timer); };
     });
-  }, [chartMode, filteredAreas]);
+  }, [chartMode]);
 
   // Prepare Area Chart Data
   const areaChartData = filteredAreas.map(a => ({
@@ -93,7 +108,7 @@ export default function RightPanel({
           </div>
           <div className="flex bg-bg-base p-1 rounded-md cursor-pointer" onClick={(e) => { e.stopPropagation(); }}>
             <button onClick={() => setChartMode('area')} className={`text-[9px] px-2 py-1 rounded transition-colors ${chartMode === 'area' ? 'bg-bg-surface text-scada-primary' : 'text-text-secondary hover:text-text-primary'}`}>PER AREA</button>
-            <button onClick={() => setChartMode('history')} className={`text-[9px] px-2 py-1 rounded transition-colors ${chartMode === 'history' ? 'bg-bg-surface text-scada-primary' : 'text-text-secondary hover:text-text-primary'}`}>HISTORY (HOTTEST)</button>
+            <button onClick={() => setChartMode('history')} className={`text-[9px] px-2 py-1 rounded transition-colors ${chartMode === 'history' ? 'bg-bg-surface text-scada-primary' : 'text-text-secondary hover:text-text-primary'}`}>GROUP HISTORY (30M)</button>
           </div>
         </div>
         <div className="flex-1 w-full min-h-0 cursor-pointer">
@@ -104,13 +119,16 @@ export default function RightPanel({
               <YAxis stroke="#9ca3af" fontSize={10} />
               <Tooltip 
                 contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
-                itemStyle={{ color: 'var(--scada-primary)', fontWeight: 'bold' }}
+                itemStyle={{ fontWeight: 'bold' }}
                 labelStyle={{ color: 'var(--text-secondary)' }}
-                formatter={(value: any, _name: any, props: any) => {
-                  return [`${value}°C`, chartMode === 'area' ? `Area: ${props.payload.name}` : `Temp`];
-                }}
               />
-              <Line type="monotone" dataKey="temp" stroke="var(--scada-primary)" strokeWidth={2} dot={chartMode === 'area' ? { r: 3, fill: 'var(--scada-primary)', strokeWidth: 0 } : false} activeDot={{ r: 5, strokeWidth: 0 }} />
+              {chartMode === 'area' ? (
+                <Line type="monotone" dataKey="temp" name="Temperature" stroke="var(--scada-primary)" strokeWidth={2} dot={{ r: 3, fill: 'var(--scada-primary)', strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+              ) : (
+                histGroups.map((name, i) => (
+                  <Line key={name} type="monotone" dataKey={name} name={name} stroke={['#06b6d4', '#eab308', '#ef4444', '#10b981', '#a855f7', '#f97316'][i % 6]} strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                ))
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>
