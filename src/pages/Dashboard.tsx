@@ -71,6 +71,17 @@ export default function Dashboard() {
   // Pagination for Left Panel
   const itemsPerPage = 7;
   const [currentPage, setCurrentPage] = useState(1);
+  const [warningThreshold, setWarningThreshold] = useState(45);
+  const [criticalThreshold, setCriticalThreshold] = useState(60);
+
+    useEffect(() => {
+    import('@tauri-apps/api/core').then(({ invoke }) => {
+      invoke<Record<string, string>>('get_all_settings').then(settings => {
+        if (settings['warning_threshold']) setWarningThreshold(Number(settings['warning_threshold']));
+        if (settings['critical_threshold']) setCriticalThreshold(Number(settings['critical_threshold']));
+      }).catch(console.error);
+    });
+  }, []);
 
   useEffect(() => {
     if ('__TAURI_INTERNALS__' in window) {
@@ -148,18 +159,31 @@ export default function Dashboard() {
     ? Array.from(new Set(mappings.filter(m => m.main_group === activeMainGroup && m.sub_group).map(m => m.sub_group as string)))
     : [];
 
-  const baseAreas: (SegmentData & { mainGroup: string; subGroup: string | null })[] = mappings.map(m => ({
+  const baseAreas: (SegmentData & { mainGroup: string; subGroup: string | null })[] = mappings.map(m => {
+      const isCableBroken = m.temp_max < -50;
+      const isTempCritical = m.temp_max >= criticalThreshold;
+      const isTempWarning = m.temp_max >= warningThreshold;
+      const isDbAlarm = alarms.some(a => a.is_active && a.ch === m.dts_ch && a.code === m.dts_code);
+      
+      const isAlarm = isCableBroken || isTempCritical || isDbAlarm;
+      let status = 'Normal';
+      if (isCableBroken) status = 'Broken Cable';
+      else if (isTempCritical) status = 'Critical';
+      else if (isTempWarning) status = 'Warning';
+      else if (isDbAlarm) status = 'Alarm';
+      
+      return {
         id: m.id,
         name: m.custom_name || m.original_name,
         distance: m.start_m != null && m.end_m != null ? `${m.start_m}m - ${m.end_m}m` : `CH${m.dts_ch}-C${m.dts_code}`,
-        temp: m.temp_avg,
+        temp: m.temp_max, // Changed to display max temperature
         temp_avg: m.temp_avg,
         temp_min: m.temp_min,
         temp_max: m.temp_max,
         temp_min_p: m.temp_min_p,
         temp_max_p: m.temp_max_p,
-        isAlarm: alarms.some(a => a.is_active && a.ch === m.dts_ch && a.code === m.dts_code), 
-        status: alarms.some(a => a.is_active && a.ch === m.dts_ch && a.code === m.dts_code) ? 'Alarm' : 'Normal',
+        isAlarm, 
+        status,
         mainGroup: m.main_group,
         subGroup: m.sub_group,
         mappingId: m.id,
@@ -168,7 +192,8 @@ export default function Dashboard() {
         dts_code: m.dts_code,
         start_m: m.start_m ?? undefined,
         end_m: m.end_m ?? undefined,
-      }));
+      };
+  });
 
   const filteredAreas = baseAreas.filter(area => {
     const matchesSearch = area.name.toLowerCase().includes(searchTerm.toLowerCase());
