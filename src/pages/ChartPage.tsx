@@ -127,7 +127,10 @@ export default function ChartPage() {
             if (s.end_m !== null && s.end_m > maxM) maxM = s.end_m;
           });
           
-          const curve: any[] = await invoke('get_segment_curve', { dts_ch: ch });
+          const safeMin = minM === 999999 ? 0 : minM;
+          const safeMax = maxM === 0 ? 999999 : maxM;
+          
+          const curve: any[] = await invoke('get_segment_curve', { dts_ch: ch, start_m: safeMin, end_m: safeMax });
           
           if (!isMounted) return;
           
@@ -138,11 +141,8 @@ export default function ChartPage() {
             return;
           }
           
-          // Slice the curve
-          const safeMin = minM === 999999 ? 0 : minM;
-          const safeMax = maxM === 0 ? curve.length : maxM;
-          
-          const sliced = curve.filter(pt => pt.distance >= safeMin && pt.distance <= safeMax);
+          // Filter out error codes from Rust (< 0)
+          const sliced = curve.filter(pt => pt.temp >= 0);
           setSpatialData(sliced);
           
           let max = -999, min = 999, sum = 0, count = 0;
