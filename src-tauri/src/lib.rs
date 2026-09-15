@@ -351,7 +351,7 @@ async fn get_segment_history(
     let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     #[derive(sqlx::FromRow)]
     #[allow(non_snake_case)]
-    struct HistRow { CreationTime: Option<chrono::NaiveDateTime>, TempAvg: Option<i32> }
+    struct HistRow { CreationTime: Option<chrono::DateTime<chrono::Utc>>, TempAvg: Option<i32> }
     
     let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
         .bind(dts_ch).bind(dts_code).bind(limit)
@@ -397,7 +397,7 @@ async fn get_alarms(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::Sta
     let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     #[derive(sqlx::FromRow)]
     #[allow(non_snake_case)]
-    struct AlarmRow { ID: i32, CreationTime: Option<chrono::NaiveDateTime>, Ch: Option<i32>, Code: Option<i32>, AlarmPoint: Option<i32>, AlarmCode: Option<i32>, AlarmTemp: Option<i32>, AlarmResetTime: Option<chrono::NaiveDateTime> }
+    struct AlarmRow { ID: i32, CreationTime: Option<chrono::DateTime<chrono::Utc>>, Ch: Option<i32>, Code: Option<i32>, AlarmPoint: Option<i32>, AlarmCode: Option<i32>, AlarmTemp: Option<i32>, AlarmResetTime: Option<chrono::DateTime<chrono::Utc>> }
     
     let rows: Vec<AlarmRow> = sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog ORDER BY CreationTime DESC LIMIT 50")
         .fetch_all(&mysql_pool)
