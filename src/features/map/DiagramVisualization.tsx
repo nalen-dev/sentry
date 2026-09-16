@@ -55,7 +55,7 @@ export default function DiagramVisualization({ isFullscreen, segments, warningTh
   const renderDynamicSegments = () => {
     return calibrations.map((calib, cIdx) => {
       // Find all segments assigned to this group
-      const groupSegments = segments.filter(s => s.main_group === calib.main_group);
+      const groupSegments = segments.filter(s => s.main_group === calib.main_group || (s.sub_group && s.sub_group === calib.main_group));
       
       return groupSegments.map((seg, sIdx) => {
         const startM = seg.start_m || 0;
