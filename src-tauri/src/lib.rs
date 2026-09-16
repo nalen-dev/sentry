@@ -514,9 +514,7 @@ async fn get_alarms(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::Sta
 }
 
 #[tauri::command]
-async fn test_db_connection,
-            get_map_calibration,
-            save_map_calibration(
+async fn test_db_connection(
     host: String,
     port: String,
     user: String,
