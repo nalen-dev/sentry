@@ -152,8 +152,7 @@ async fn sync_dts_segments(state: tauri::State<'_, SqlitePool>, mysql_state: tau
     .await
     .map_err(|e| format!("Failed to fetch segments: {}", e))?;
 
-    // Wipe old data completely (replace)
-    let _ = sqlx::query("DELETE FROM segment_mappings").execute(&*state).await;
+    // We no longer wipe the table! We upsert to preserve the user's mapping assignments.
 
     // 4. Sync to SQLite
     let mut new_added = 0;
@@ -163,7 +162,9 @@ async fn sync_dts_segments(state: tauri::State<'_, SqlitePool>, mysql_state: tau
             
             let result = sqlx::query(
                 "INSERT INTO segment_mappings (dts_ch, dts_code, original_name, main_group, start_m, end_m) 
-                 VALUES (?, ?, ?, 'Unassigned', ?, ?)"
+                 VALUES (?, ?, ?, 'Unassigned', ?, ?) 
+                 ON CONFLICT(dts_ch, dts_code) 
+                 DO UPDATE SET start_m = excluded.start_m, end_m = excluded.end_m, original_name = excluded.original_name"
             )
             .bind(row.ch)
             .bind(code)
@@ -207,12 +208,11 @@ async fn update_segment_mapping(
     end_m: Option<f64>,
     state: tauri::State<'_, SqlitePool>
 ) -> Result<(), String> {
-    let _ = sqlx::query("UPDATE segment_mappings SET custom_name = ?, main_group = ?, sub_group = ?, start_m = ?, end_m = ? WHERE id = ?")
+    // Only update mapping fields, NEVER overwrite start_m or end_m with null from the UI!
+    let _ = sqlx::query("UPDATE segment_mappings SET custom_name = ?, main_group = ?, sub_group = ? WHERE id = ?")
         .bind(custom_name)
         .bind(main_group)
         .bind(sub_group)
-        .bind(start_m)
-        .bind(end_m)
         .bind(id)
         .execute(&*state)
         .await
