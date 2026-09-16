@@ -156,14 +156,34 @@ export default function SettingPage() {
     }
   };
 
-  const handleUpdateBulkMapping = async (ids: number[], customName: string | null, mainGroup: string, startM: number | null, endM: number | null) => {
-    for (const id of ids) {
+  const handleUpdateBulkMapping = async (ids: number[], customName: string | null, mainGroup: string, subGroup: string | null, startM: number | null, endM: number | null) => {
+    // Sort IDs to ensure physical order
+    const sortedIds = [...ids].sort((a, b) => a - b);
+    
+    for (let i = 0; i < sortedIds.length; i++) {
+      const id = sortedIds[i];
+      let segStart = startM;
+      let segEnd = endM;
+      
+      // Auto-Distribute Distance if multiple segments and both bounds are provided
+      if (sortedIds.length > 1 && startM !== null && endM !== null) {
+        const totalDist = endM - startM;
+        const step = totalDist / sortedIds.length;
+        segStart = startM + (i * step);
+        segEnd = startM + ((i + 1) * step);
+        
+        // Round to 1 decimal place to keep it clean
+        segStart = Math.round(segStart * 10) / 10;
+        segEnd = Math.round(segEnd * 10) / 10;
+      }
+
       await invoke('update_segment_mapping', {
         id,
         customName,
         mainGroup,
-        startM,
-        endM
+        subGroup,
+        startM: segStart,
+        endM: segEnd
       });
     }
     const fetchedMappings: SegmentMapping[] = await invoke('get_segment_mappings');

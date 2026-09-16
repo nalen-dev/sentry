@@ -201,14 +201,16 @@ async fn get_segment_mappings(state: tauri::State<'_, SqlitePool>) -> Result<Vec
 async fn update_segment_mapping(
     id: i32, 
     custom_name: Option<String>, 
-    main_group: String, 
+    main_group: String,
+    sub_group: Option<String>,
     start_m: Option<f64>,
     end_m: Option<f64>,
     state: tauri::State<'_, SqlitePool>
 ) -> Result<(), String> {
-    let _ = sqlx::query("UPDATE segment_mappings SET custom_name = ?, main_group = ?, start_m = ?, end_m = ? WHERE id = ?")
+    let _ = sqlx::query("UPDATE segment_mappings SET custom_name = ?, main_group = ?, sub_group = ?, start_m = ?, end_m = ? WHERE id = ?")
         .bind(custom_name)
         .bind(main_group)
+        .bind(sub_group)
         .bind(start_m)
         .bind(end_m)
         .bind(id)
