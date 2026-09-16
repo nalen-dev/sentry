@@ -16,7 +16,7 @@ export interface SegmentMapping {
 
 interface MappingGridProps {
   mappings: SegmentMapping[];
-  onUpdateBulk: (ids: number[], customName: string | null, mainGroup: string, subGroup: string | null) => Promise<void>;
+  onUpdateBulk: (ids: number[], customName: string | null, mainGroup: string, startM: number | null, endM: number | null) => Promise<void>;
 }
 
 export default function MappingGrid({ mappings, onUpdateBulk }: MappingGridProps) {
@@ -26,7 +26,8 @@ export default function MappingGrid({ mappings, onUpdateBulk }: MappingGridProps
 
   // Form states
   const [formMainGroup, setFormMainGroup] = useState('Unassigned');
-  const [formSubGroup, setFormSubGroup] = useState('');
+  const [formStartM, setFormStartM] = useState<number | ''>('');
+  const [formEndM, setFormEndM] = useState<number | ''>('');
   const [formCustomName, setFormCustomName] = useState('');
 
   // Group Colors mapping
@@ -74,7 +75,8 @@ export default function MappingGrid({ mappings, onUpdateBulk }: MappingGridProps
       const selected = mappings.find(m => m.id === Array.from(newSet)[0]);
       if (selected) {
         setFormMainGroup(selected.main_group);
-        setFormSubGroup(selected.sub_group || '');
+        setFormStartM(selected.start_m ?? '');
+        setFormEndM(selected.end_m ?? '');
         setFormCustomName(selected.custom_name || '');
       }
     } else {
@@ -123,7 +125,7 @@ export default function MappingGrid({ mappings, onUpdateBulk }: MappingGridProps
         Array.from(selectedIds), 
         selectedIds.size === 1 ? (formCustomName || null) : null,
         formMainGroup, 
-        formSubGroup || null
+        formStartM === '' ? null : Number(formStartM), formEndM === '' ? null : Number(formEndM)
       );
       showToast(`Successfully updated ${selectedIds.size} segments!`, 'success');
     } catch (e) {
@@ -248,23 +250,39 @@ export default function MappingGrid({ mappings, onUpdateBulk }: MappingGridProps
               className="w-full bg-bg-panel border border-border rounded-lg p-2 text-sm text-text-primary focus:outline-none focus:border-scada-primary disabled:opacity-50"
             >
               <option value="Unassigned">Unassigned</option>
-              <option value="BC4">BC4</option>
+              <option value="BC4 A">BC4 A</option>
+              <option value="BC4 B">BC4 B</option>
               <option value="BC5">BC5</option>
-              <option value="Tunnel TCM">Tunnel TCM</option>
-              <option value="Tunnel BEK">Tunnel BEK</option>
+              <option value="BC45-MOTOR">BC45-MOTOR</option>
+              <option value="BEK56">BEK56</option>
+              <option value="BEK34">BEK34</option>
+              <option value="TCM16">TCM16</option>
             </select>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-text-secondary uppercase tracking-wider block">Sub Group (Optional)</label>
-            <input 
-              type="text" 
-              value={formSubGroup}
-              onChange={e => setFormSubGroup(e.target.value)}
-              disabled={selectedIds.size === 0}
-              placeholder="e.g. TCM 1"
-              className="w-full bg-bg-panel border border-border rounded-lg p-2 text-sm text-text-primary focus:outline-none focus:border-scada-primary disabled:opacity-50"
-            />
+          <div className="flex space-x-2">
+            <div className="space-y-1.5 flex-1">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider block">Start (M)</label>
+              <input 
+                type="number" 
+                value={formStartM}
+                onChange={e => setFormStartM(e.target.value === '' ? '' : Number(e.target.value))}
+                disabled={selectedIds.size === 0}
+                placeholder="0"
+                className="w-full bg-bg-panel border border-border rounded-lg p-2 text-sm text-text-primary focus:outline-none focus:border-scada-primary disabled:opacity-50"
+              />
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider block">End (M)</label>
+              <input 
+                type="number" 
+                value={formEndM}
+                onChange={e => setFormEndM(e.target.value === '' ? '' : Number(e.target.value))}
+                disabled={selectedIds.size === 0}
+                placeholder="50"
+                className="w-full bg-bg-panel border border-border rounded-lg p-2 text-sm text-text-primary focus:outline-none focus:border-scada-primary disabled:opacity-50"
+              />
+            </div>
           </div>
 
           {selectedIds.size === 1 && (

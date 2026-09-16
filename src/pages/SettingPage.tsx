@@ -156,13 +156,14 @@ export default function SettingPage() {
     }
   };
 
-  const handleUpdateBulkMapping = async (ids: number[], customName: string | null, mainGroup: string, subGroup: string | null) => {
+  const handleUpdateBulkMapping = async (ids: number[], customName: string | null, mainGroup: string, startM: number | null, endM: number | null) => {
     for (const id of ids) {
       await invoke('update_segment_mapping', {
         id,
-        customName, // only applied if customName is provided (single select)
+        customName,
         mainGroup,
-        subGroup
+        startM,
+        endM
       });
     }
     const fetchedMappings: SegmentMapping[] = await invoke('get_segment_mappings');
