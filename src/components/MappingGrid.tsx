@@ -301,9 +301,20 @@ export default function MappingGrid({ mappings, onUpdateBulk }: MappingGridProps
           </div>
 
           {selectedIds.size === 1 && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider block">Custom Name / Alias</label>
-              <input 
+            <>
+              <div className="flex space-x-2">
+                <div className="space-y-1.5 flex-1">
+                  <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">HW Start (M)</label>
+                  <div className="w-full bg-bg-panel border border-border rounded-lg p-2 text-sm text-text-secondary">{formStartM !== '' ? formStartM : '-'}</div>
+                </div>
+                <div className="space-y-1.5 flex-1">
+                  <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">HW End (M)</label>
+                  <div className="w-full bg-bg-panel border border-border rounded-lg p-2 text-sm text-text-secondary">{formEndM !== '' ? formEndM : '-'}</div>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider block">Custom Name / Alias</label>
+                <input 
                 type="text" 
                 value={formCustomName}
                 onChange={e => setFormCustomName(e.target.value)}
@@ -311,6 +322,7 @@ export default function MappingGrid({ mappings, onUpdateBulk }: MappingGridProps
                 className="w-full bg-bg-panel border border-border rounded-lg p-2 text-sm text-text-primary focus:outline-none focus:border-scada-primary"
               />
             </div>
+            </>
           )}
 
           {selectedIds.size > 1 && (
