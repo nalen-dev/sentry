@@ -514,7 +514,9 @@ async fn get_alarms(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::Sta
 }
 
 #[tauri::command]
-async fn test_db_connection(
+async fn test_db_connection,
+            get_map_calibration,
+            save_map_calibration(
     host: String,
     port: String,
     user: String,
@@ -631,7 +633,9 @@ pub fn run() {
             get_segment_history, get_groups_history,
             get_alarms,
             update_segment_mapping,
-            test_db_connection
+            test_db_connection,
+            get_map_calibration,
+            save_map_calibration
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

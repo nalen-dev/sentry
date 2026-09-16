@@ -32,10 +32,13 @@ export default function MappingGrid({ mappings, onUpdateBulk }: MappingGridProps
   // Group Colors mapping
   const groupColors: Record<string, string> = {
     'Unassigned': 'bg-bg-panel border-border',
-    'BC4': 'bg-blue-500/80 border-blue-400',
+    'BC4 A': 'bg-blue-500/80 border-blue-400',
+    'BC4 B': 'bg-blue-400/80 border-blue-300',
     'BC5': 'bg-purple-500/80 border-purple-400',
-    'Tunnel TCM': 'bg-emerald-500/80 border-emerald-400',
-    'Tunnel BEK': 'bg-amber-500/80 border-amber-400',
+    'BC45-MOTOR': 'bg-pink-500/80 border-pink-400',
+    'BEK56': 'bg-amber-500/80 border-amber-400',
+    'BEK34': 'bg-orange-500/80 border-orange-400',
+    'TCM16': 'bg-emerald-500/80 border-emerald-400',
   };
 
   const handleBoxClick = (e: React.MouseEvent, mapId: number, index: number) => {
