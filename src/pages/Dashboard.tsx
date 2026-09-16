@@ -164,7 +164,7 @@ export default function Dashboard() {
     ? Array.from(new Set(mappings.filter(m => m.main_group === activeMainGroup && m.sub_group).map(m => m.sub_group as string)))
     : [];
 
-  const baseAreas: (SegmentData & { mainGroup: string; subGroup: string | null })[] = mappings.map(m => {
+  const baseAreas: (SegmentData & { mainGroup: string; subGroup?: string })[] = mappings.map(m => {
       const isCableBroken = m.temp_max < -50;
       const isTempCritical = m.temp_max >= criticalThreshold;
       const isTempWarning = m.temp_max >= warningThreshold;
@@ -186,7 +186,7 @@ export default function Dashboard() {
       
       return {
         id: m.id,
-        name: m.custom_name || m.original_name,
+        name: (m as any).smart_name || m.custom_name || m.original_name,
         distance: m.start_m != null && m.end_m != null ? `${m.start_m}m - ${m.end_m}m` : `CH${m.dts_ch}-C${m.dts_code}`,
         temp: m.temp_max, // Changed to display max temperature
         temp_avg: m.temp_avg,
@@ -197,7 +197,7 @@ export default function Dashboard() {
         isAlarm, 
         status,
         mainGroup: m.main_group,
-        subGroup: m.sub_group,
+        subGroup: m.sub_group || undefined,
         mappingId: m.id,
         original_name: m.original_name,
         dts_ch: m.dts_ch,

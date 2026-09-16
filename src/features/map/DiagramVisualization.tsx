@@ -54,23 +54,24 @@ export default function DiagramVisualization({ isFullscreen, segments, warningTh
   };
 
   
-  // Hardcoded polylines for exact physical loops
+  // Hardcoded polylines for exact physical loops. 
+  // Arrays are reversed so that index 0 is always the side CLOSER to the Control Room (0 meters).
   const SUBGROUP_PATHS: Record<string, number[][]> = {
-    // TCM16 Loops (Starts from bottom of tunnel)
-    'TN12': [[60, 372], [60, 314], [130, 314], [130, 372]],
-    'TN23': [[130, 372], [130, 314], [200, 314], [200, 372]],
-    'TN34': [[200, 372], [200, 314], [270, 314], [270, 372]],
-    'TN45': [[270, 372], [270, 314], [340, 314], [340, 372]], // Added TN45 just in case
-    'TN56': [[340, 372], [340, 314], [410, 314], [410, 372]],
-    'TN6CR': [[410, 372], [410, 314], [513, 314], [513, 360]], // Connected down to Control Room
+    // TCM16 Loops (0m at Control Room)
+    'TN6CR': [[513, 360], [513, 314], [410, 314], [410, 372]], // Control Room to TN6 bottom
+    'TN56': [[410, 372], [410, 314], [340, 314], [340, 372]],  // TN6 bottom to TN5 bottom
+    'TN45': [[340, 372], [340, 314], [270, 314], [270, 372]],  // TN5 bottom to TN4 bottom
+    'TN34': [[270, 372], [270, 314], [200, 314], [200, 372]],  // TN4 bottom to TN3 bottom
+    'TN23': [[200, 372], [200, 314], [130, 314], [130, 372]],  // TN3 bottom to TN2 bottom
+    'TN12': [[130, 372], [130, 314], [60, 314], [60, 372]],    // TN2 bottom to TN1 bottom
 
-    // BEK34 Loops
-    'BE34M': [[235, 220], [235, 282], [305, 282], [305, 220]],
-    'BEK4CR': [[305, 220], [305, 282], [513, 282], [513, 360]],
+    // BEK34 Loops (0m at Control Room)
+    'BEK4CR': [[513, 360], [513, 282], [305, 282], [305, 220]], // Control Room to BEK4 bottom
+    'BE34M': [[305, 220], [305, 282], [235, 282], [235, 220]],  // BEK4 bottom to BEK3 bottom
 
-    // BEK56 Loops
-    'BEK56M': [[375, 220], [375, 274], [445, 274], [445, 220]],
-    'BEK6CR': [[445, 220], [445, 274], [513, 274], [513, 360]]
+    // BEK56 Loops (0m at Control Room)
+    'BEK6CR': [[513, 360], [513, 274], [445, 274], [445, 220]], // Control Room to BEK6 bottom
+    'BEK56M': [[445, 220], [445, 274], [375, 274], [375, 220]]  // BEK6 bottom to BEK5 bottom
   };
 
   const getPathSegments = (points: number[][]) => {
@@ -148,10 +149,10 @@ const renderDynamicSegments = () => {
           return (
             <g key={`${cIdx}-${sIdx}`}>
               {lines.map((l, lIdx) => (
-                <line key={lIdx} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} strokeWidth="3" className={`${strokeColor} ${strokeColor.includes('red') ? 'animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : ''} transition-colors duration-500`} strokeLinecap="round" />
+                <line key={lIdx} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} strokeWidth="3" className={`${strokeColor} ${isAlarm ? 'animate-pulse' : ''} ${strokeColor.includes('red') ? 'drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : strokeColor.includes('yellow') ? 'drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]' : ''} transition-colors duration-500`} strokeLinecap="round" />
               ))}
               {isAlarm && (
-                <g transform={`translate(${midX}, ${midY})`} className="animate-bounce">
+                <g transform={`translate(${midX}, ${midY})`} className="animate-bounce animate-pulse">
                   <path d="M0 -15 C 8 -15 12 -7 12 0 C 12 8 0 15 0 15 C 0 15 -12 8 -12 0 C -12 -7 -8 -15 0 -15" className={fillColor} />
                   <circle cx="0" cy="-5" r="4" fill="white" />
                 </g>
@@ -171,9 +172,9 @@ const renderDynamicSegments = () => {
           const midY = (y1 + y2) / 2;
           return (
             <g key={`${cIdx}-${sIdx}`}>
-              <line x1={x1} y1={y1} x2={x2} y2={y2} strokeWidth="3" className={`${strokeColor} ${strokeColor.includes('red') ? 'animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : ''} transition-colors duration-500`} strokeLinecap="round" />
+              <line x1={x1} y1={y1} x2={x2} y2={y2} strokeWidth="3" className={`${strokeColor} ${isAlarm ? 'animate-pulse' : ''} ${strokeColor.includes('red') ? 'drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : strokeColor.includes('yellow') ? 'drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]' : ''} transition-colors duration-500`} strokeLinecap="round" />
               {isAlarm && (
-                <g transform={`translate(${midX}, ${midY})`} className="animate-bounce">
+                <g transform={`translate(${midX}, ${midY})`} className="animate-bounce animate-pulse">
                   <path d="M0 -15 C 8 -15 12 -7 12 0 C 12 8 0 15 0 15 C 0 15 -12 8 -12 0 C -12 -7 -8 -15 0 -15" className={fillColor} />
                   <circle cx="0" cy="-5" r="4" fill="white" />
                 </g>

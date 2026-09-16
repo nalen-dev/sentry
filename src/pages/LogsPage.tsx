@@ -1,50 +1,20 @@
 import { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { exportElementToPDF } from '../utils/exportPdf';
 import { History, Calendar, Download, AlertTriangle, Info, AlertCircle, Search, FileText } from 'lucide-react';
 import TopNavbar from '../components/layout/TopNavbar';
-import { DUMMY_AREAS } from '../data/constants';
+
 
 // Generate complex dummy logs
-const generateDummyLogs = () => {
-  const logs = [];
-  const now = new Date();
-  
-  for (let i = 0; i < 50; i++) {
-    const time = new Date(now.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000); // Random within last 7 days
-    
-    const types = ['info', 'warn', 'error'];
-    const type = types[Math.floor(Math.random() * types.length)] as 'info' | 'warn' | 'error';
-    
-    let msg = '';
-    let segment = '-';
-    
-    if (type === 'info') {
-      const msgs = ['System heartbeat OK', 'User Operator logged in', 'Routine calibration completed', 'Data synced with central server'];
-      msg = msgs[Math.floor(Math.random() * msgs.length)];
-    } else {
-      const area = DUMMY_AREAS[Math.floor(Math.random() * DUMMY_AREAS.length)];
-      segment = area.name;
-      
-      if (type === 'warn') {
-        msg = `Temperature warning threshold exceeded: ${(Math.random() * 5 + 60).toFixed(1)}°C`;
-      } else {
-        msg = `ALARM TRIGGERED: CRITICAL TEMP DETECTED AT ${(Math.random() * 10 + 75).toFixed(1)}°C`;
-      }
-    }
-    
-    logs.push({
-      id: 5000 + i,
-      timestamp: time,
-      type,
-      msg,
-      segment
-    });
-  }
-  
-  // Sort descending by time
-  return logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-};
 
-const DUMMY_HISTORY_LOGS = generateDummyLogs();
+interface SystemLog {
+  id: string;
+  type: 'info' | 'warn' | 'error';
+  timestamp: Date;
+  segment: string;
+  msg: string;
+  user: string;
+}
 
 export default function LogsPage() {
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -53,6 +23,58 @@ export default function LogsPage() {
   });
   const [userRole, setUserRole] = useState('OPERATOR');
   const [userId, setUserId] = useState('OP-7729');
+  
+  const [logs, setLogs] = useState<SystemLog[]>([]);
+  const [, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLogs = async () => {
+      try {
+        const alarms: any[] = await invoke('get_alarms');
+        const mappings: any[] = await invoke('get_segment_mappings');
+        
+        if (!isMounted) return;
+
+        const mappedLogs: SystemLog[] = alarms.map((a: any) => {
+          const map = mappings.find(m => m.dts_ch === a.ch && m.dts_code === a.code);
+          const segmentName = map && map.main_group !== 'Unassigned' ? `${map.main_group} ${map.sub_group ? '- ' + map.sub_group : ''}` : `CH ${a.ch} CODE ${a.code}`;
+          
+          let logType: 'error' | 'warn' | 'info' = 'info';
+          let msg = `Event at ${a.distance}m. Temp: ${a.temp}°C`;
+          
+          if (a.alarm_type === 2) {
+             logType = 'error';
+             msg = `CRITICAL OVERHEAT DETECTED at ${a.distance}m! Temperature reached ${a.temp}°C`;
+          } else if (a.alarm_type === 1) {
+             logType = 'warn';
+             msg = `Warning threshold exceeded at ${a.distance}m (${a.temp}°C)`;
+          } else if (a.alarm_type === 4) {
+             logType = 'error';
+             msg = `FIBER BREAK DETECTED at ${a.distance}m!`;
+          }
+
+          return {
+            id: `L-${a.id}`,
+            type: logType,
+            timestamp: new Date(a.time),
+            segment: segmentName,
+            msg: msg,
+            user: 'SYSTEM'
+          };
+        });
+        
+        setLogs(mappedLogs);
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        setLoading(false);
+      }
+    };
+    
+    fetchLogs();
+  }, []);
+
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'info' | 'warn' | 'error'>('all');
@@ -69,7 +91,7 @@ export default function LogsPage() {
     document.documentElement.className = isDarkMode ? 'dark' : 'light';
   }, [isDarkMode]);
 
-  const filteredLogs = DUMMY_HISTORY_LOGS.filter(log => {
+  const filteredLogs = logs.filter(log => {
     const matchesSearch = log.msg.toLowerCase().includes(searchTerm.toLowerCase()) || log.segment.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || log.type === filterType;
     return matchesSearch && matchesType;
@@ -118,8 +140,8 @@ export default function LogsPage() {
             <button className="flex items-center px-4 py-2 bg-bg-panel border border-border rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface transition-colors font-bold text-sm shadow-sm">
               <Calendar size={16} className="mr-2" /> SELECT DATE RANGE
             </button>
-            <button className="flex items-center px-4 py-2 bg-bg-panel border border-border rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface transition-colors font-bold text-sm shadow-sm">
-              <Download size={16} className="mr-2" /> EXPORT PDF/CSV
+            <button onClick={() => exportElementToPDF('logs-export-container', `DTS_Logs_${new Date().getTime()}`)} className="flex items-center px-4 py-2 bg-bg-panel border border-border rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface transition-colors font-bold text-sm shadow-sm">
+              <Download size={16} className="mr-2" /> EXPORT PDF
             </button>
           </div>
         </div>
@@ -166,7 +188,7 @@ export default function LogsPage() {
         </div>
 
         {/* LOGS TABLE */}
-        <div className="bg-bg-panel border border-border rounded-xl flex-1 flex flex-col shadow-lg overflow-hidden">
+        <div id="logs-export-container" className="bg-bg-panel border border-border rounded-xl flex-1 flex flex-col shadow-lg overflow-hidden">
           <div className="overflow-x-auto flex-1 custom-scrollbar">
             <table className="w-full text-left border-collapse">
               <thead className="bg-bg-surface sticky top-0 z-10 shadow-sm border-b border-border">
@@ -217,7 +239,7 @@ export default function LogsPage() {
           </div>
           
           <div className="bg-bg-surface p-3 border-t border-border flex justify-between items-center text-xs text-text-secondary font-mono">
-            <span>Showing {filteredLogs.length} of {DUMMY_HISTORY_LOGS.length} records</span>
+            <span>Showing {filteredLogs.length} of {logs.length} records</span>
             <div className="flex space-x-1">
               <button className="px-2 py-1 rounded hover:bg-bg-panel border border-transparent hover:border-border text-text-secondary">Prev</button>
               <button className="px-2 py-1 rounded bg-bg-panel border border-border text-text-primary">1</button>

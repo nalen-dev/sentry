@@ -4,7 +4,7 @@ import { SegmentData } from '../../components/SegmentDetailModal';
 
 interface DataModalProps {
   onClose: () => void;
-  areas: (SegmentData & { mainGroup: string; subGroup: string | null })[];
+  areas: (SegmentData & { mainGroup: string; subGroup?: string })[];
   setSelectedSegment: (segment: SegmentData) => void;
 }
 

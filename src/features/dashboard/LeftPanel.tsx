@@ -106,6 +106,14 @@ export default function LeftPanel({
                   <span className={`font-bold text-base drop-shadow-md ${area.isAlarm ? 'text-red-400' : 'text-text-primary'}`}>
                     {area.name}
                   </span>
+                  <div className="flex items-center space-x-1 mt-0.5">
+                    {area.mainGroup && area.mainGroup !== 'Unassigned' && (
+                       <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-bg-surface text-text-secondary rounded border border-border/50">{area.mainGroup}</span>
+                    )}
+                    {area.subGroup && (
+                       <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-scada-primary/10 text-scada-primary rounded border border-scada-primary/20">{area.subGroup}</span>
+                    )}
+                  </div>
                   {area.isAlarm && (
                     <span className="text-[10px] font-bold font-mono tracking-wider mt-1 px-2 py-0.5 rounded bg-red-500/20 text-red-400 w-fit">
                       {area.status}

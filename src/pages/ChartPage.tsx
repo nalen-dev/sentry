@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { LineChart as LineChartIcon, Download, Activity, Thermometer, Layers, Map } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine, AreaChart, Area } from 'recharts';
+import { exportElementToPDF } from '../utils/exportPdf';
 import TopNavbar from '../components/layout/TopNavbar';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -19,7 +20,8 @@ export default function ChartPage() {
   const [chartMode, setChartMode] = useState<ChartMode>('history');
   
   // History Mode State
-  const [selectedTimeRange, setSelectedTimeRange] = useState('30m'); 
+  const [timeRangeDays, setTimeRangeDays] = useState(0);
+  const [timeRangeHours, setTimeRangeHours] = useState(1); 
   const [histData, setHistData] = useState<any[]>([]);
   const [histGroups, setHistGroups] = useState<string[]>([]);
   
@@ -64,7 +66,7 @@ export default function ChartPage() {
         setLoading(true);
         
         if (chartMode === 'history') {
-          const minutes = selectedTimeRange === '30m' ? 30 : selectedTimeRange === '1h' ? 60 : selectedTimeRange === '6h' ? 360 : 30;
+          const minutes = (timeRangeDays * 24 * 60) + (timeRangeHours * 60);
           const [data, mappingsData] = await Promise.all([
              invoke<any[]>('get_groups_history', { minutes }),
              invoke<any[]>('get_segment_mappings')
@@ -180,7 +182,7 @@ export default function ChartPage() {
     fetchData();
     const interval = setInterval(fetchData, 10000); 
     return () => { isMounted = false; clearInterval(interval); };
-  }, [selectedTimeRange, chartMode, selectedGroup, mappings]);
+  }, [timeRangeDays, timeRangeHours, chartMode, selectedGroup, mappings]);
 
   const uniqueGroups = useMemo(() => Array.from(new Set(mappings.map(m => m.main_group))).filter(g => g !== 'Unassigned') as string[], [mappings]);
 
@@ -228,20 +230,12 @@ export default function ChartPage() {
             </div>
             
             {chartMode === 'history' ? (
-              <div className="flex bg-bg-panel border border-border rounded-lg overflow-hidden shadow-sm">
-                {['30m', '1h', '6h'].map(range => (
-                  <button
-                    key={range}
-                    onClick={() => setSelectedTimeRange(range)}
-                    className={`px-4 py-2 font-mono text-sm font-bold transition-colors ${
-                      selectedTimeRange === range 
-                        ? 'bg-scada-primary/20 text-scada-primary border-b-2 border-scada-primary' 
-                        : 'text-text-secondary hover:bg-bg-surface hover:text-text-primary border-b-2 border-transparent'
-                    }`}
-                  >
-                    {range}
-                  </button>
-                ))}
+              <div className="flex bg-bg-panel border border-border rounded-lg overflow-hidden shadow-sm items-center px-2 py-1 space-x-2">
+                <span className="text-xs font-bold text-text-secondary">RANGE:</span>
+                <input type="number" min="0" max="30" value={timeRangeDays} onChange={e => setTimeRangeDays(parseInt(e.target.value) || 0)} className="w-16 bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary outline-none" title="Days" />
+                <span className="text-xs font-mono text-text-secondary">Days</span>
+                <input type="number" min="0" max="23" value={timeRangeHours} onChange={e => setTimeRangeHours(parseInt(e.target.value) || 0)} className="w-16 bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary outline-none" title="Hours" />
+                <span className="text-xs font-mono text-text-secondary">Hours</span>
               </div>
             ) : (
               <select 
@@ -255,8 +249,8 @@ export default function ChartPage() {
               </select>
             )}
             
-            <button className="flex items-center px-4 py-2 bg-bg-panel border border-border rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface transition-colors font-bold text-sm shadow-sm">
-              <Download size={16} className="mr-2" /> EXPORT CSV
+            <button onClick={() => exportElementToPDF('chart-export-container', `DTS_Chart_${chartMode}_${new Date().getTime()}`)} className="flex items-center px-4 py-2 bg-bg-panel border border-border rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface transition-colors font-bold text-sm shadow-sm">
+              <Download size={16} className="mr-2" /> EXPORT PDF
             </button>
           </div>
         </div>
@@ -336,7 +330,7 @@ export default function ChartPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} vertical={false} />
                 <XAxis dataKey="distance" stroke="#9ca3af" fontSize={12} tickMargin={10} tickFormatter={(v) => `${v}m`} />
-                <YAxis stroke="#9ca3af" fontSize={12} domain={['dataMin - 2', 'dataMax + 5']} />
+                <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
                   itemStyle={{ color: '#ef4444', fontWeight: 'bold' }}
