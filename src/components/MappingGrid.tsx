@@ -275,30 +275,7 @@ export default function MappingGrid({ mappings, onUpdateBulk }: MappingGridProps
             />
           </div>
 
-          <div className="flex space-x-2">
-            <div className="space-y-1.5 flex-1">
-              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider block">Start (M)</label>
-              <input 
-                type="number" 
-                value={formStartM}
-                onChange={e => setFormStartM(e.target.value === '' ? '' : Number(e.target.value))}
-                disabled={selectedIds.size === 0}
-                placeholder="0"
-                className="w-full bg-bg-panel border border-border rounded-lg p-2 text-sm text-text-primary focus:outline-none focus:border-scada-primary disabled:opacity-50"
-              />
-            </div>
-            <div className="space-y-1.5 flex-1">
-              <label className="text-xs font-bold text-text-secondary uppercase tracking-wider block">End (M)</label>
-              <input 
-                type="number" 
-                value={formEndM}
-                onChange={e => setFormEndM(e.target.value === '' ? '' : Number(e.target.value))}
-                disabled={selectedIds.size === 0}
-                placeholder="50"
-                className="w-full bg-bg-panel border border-border rounded-lg p-2 text-sm text-text-primary focus:outline-none focus:border-scada-primary disabled:opacity-50"
-              />
-            </div>
-          </div>
+          
 
           {selectedIds.size === 1 && (
             <>
