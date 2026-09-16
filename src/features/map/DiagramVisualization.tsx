@@ -14,6 +14,7 @@ interface MapCalibration {
 
 interface LiveSegment {
   main_group: string;
+  sub_group?: string | null;
   start_m?: number | null;
   end_m?: number | null;
   temp_max: number;
