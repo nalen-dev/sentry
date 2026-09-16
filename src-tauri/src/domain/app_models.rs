@@ -25,3 +25,19 @@ pub struct SegmentMapping {
     pub start_m: Option<i32>,
     pub end_m: Option<i32>,
 }
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct MapCalibration {
+    pub id: Option<i32>,
+    pub main_group: String,
+    pub start_m: i32,
+    pub end_m: i32,
+    pub start_svg_x: f32,
+    pub start_svg_y: f32,
+    pub end_svg_x: f32,
+    pub end_svg_y: f32,
+    pub start_lat: Option<f32>,
+    pub start_lng: Option<f32>,
+    pub end_lat: Option<f32>,
+    pub end_lng: Option<f32>,
+}

@@ -320,7 +320,7 @@ export default function Dashboard() {
               setMapZoom={setMapZoom} 
             />
           ) : (
-            <DiagramVisualization isFullscreen={isFullscreen} />
+            <DiagramVisualization isFullscreen={isFullscreen} segments={mappings} warningThreshold={warningThreshold} criticalThreshold={criticalThreshold} />
           )}
 
           {/* View Toolbar overlay (Right) */}

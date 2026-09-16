@@ -1,24 +1,32 @@
 import re
 
-with open('src/pages/Dashboard.tsx', 'r') as f:
-    db = f.read()
+with open('src/pages/SettingPage.tsx', 'r') as f:
+    code = f.read()
 
-# Add a useEffect for fetching settings once
-new_effect = """  useEffect(() => {
-    import('@tauri-apps/api/core').then(({ invoke }) => {
-      invoke<Record<string, string>>('get_all_settings').then(settings => {
-        if (settings['warning_threshold']) setWarningThreshold(Number(settings['warning_threshold']));
-        if (settings['critical_threshold']) setCriticalThreshold(Number(settings['critical_threshold']));
-      }).catch(console.error);
-    });
-  }, []);"""
+# Fix SettingTab
+code = code.replace("type SettingTab = 'time' | 'mapping' | 'users' | 'database' | 'threshold' | 'advanced';", "type SettingTab = 'time' | 'mapping' | 'map-calibration' | 'users' | 'database' | 'threshold' | 'advanced';")
 
-db = db.replace(
-    "useEffect(() => {",
-    new_effect + "\n\n  useEffect(() => {",
-    1
-)
+# Insert MapCalibration interface before default export
+interface_code = """
+export interface MapCalibration {
+  id?: number;
+  main_group: string;
+  start_m: number;
+  end_m: number;
+  start_svg_x: number;
+  start_svg_y: number;
+  end_svg_x: number;
+  end_svg_y: number;
+  start_lat?: number;
+  start_lng?: number;
+  end_lat?: number;
+  end_lng?: number;
+}
 
-with open('src/pages/Dashboard.tsx', 'w') as f:
-    f.write(db)
+"""
+
+code = code.replace("export default function SettingPage() {", interface_code + "export default function SettingPage() {")
+
+with open('src/pages/SettingPage.tsx', 'w') as f:
+    f.write(code)
 

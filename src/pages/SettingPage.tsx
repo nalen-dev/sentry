@@ -8,13 +8,14 @@ import {
   ShieldAlert,
   Save,
   RotateCcw,
-  Link2
+  Link2,
+  Map
 } from 'lucide-react';
 import TopNavbar from '../components/layout/TopNavbar';
 import { invoke } from '@tauri-apps/api/core';
 import { useToast } from '../contexts/ToastContext';
 
-type SettingTab = 'time' | 'mapping' | 'users' | 'database' | 'threshold' | 'advanced';
+type SettingTab = 'time' | 'mapping' | 'map-calibration' | 'users' | 'database' | 'threshold' | 'advanced';
 
 interface UserData {
   id: string;
@@ -24,6 +25,22 @@ interface UserData {
 
 import MappingGrid, { SegmentMapping } from '../components/MappingGrid';
 import ConfirmModal from '../components/ConfirmModal';
+
+
+export interface MapCalibration {
+  id?: number;
+  main_group: string;
+  start_m: number;
+  end_m: number;
+  start_svg_x: number;
+  start_svg_y: number;
+  end_svg_x: number;
+  end_svg_y: number;
+  start_lat?: number;
+  start_lng?: number;
+  end_lat?: number;
+  end_lng?: number;
+}
 
 export default function SettingPage() {
   const { showToast } = useToast();
@@ -86,6 +103,10 @@ export default function SettingPage() {
 
       // 3. Fetch mappings
       const fetchedMappings: SegmentMapping[] = await invoke('get_segment_mappings');
+
+      const fetchedCalib: MapCalibration[] = await invoke('get_map_calibration');
+      setCalibrations(fetchedCalib);
+
       setMappings(fetchedMappings);
     } catch (err) {
       console.error("Failed to load backend data:", err);
@@ -96,12 +117,30 @@ export default function SettingPage() {
     setShowConfirmModal(true);
   };
 
+  
+  const saveCalibration = async (calib: MapCalibration) => {
+    try {
+      setIsSavingCalib(true);
+      await invoke('save_map_calibration', { calib });
+      const fetched: MapCalibration[] = await invoke('get_map_calibration');
+      setCalibrations(fetched);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSavingCalib(false);
+    }
+  };
+
   const confirmSyncDts = async () => {
     try {
       const res: any = await invoke('sync_dts_segments');
       showToast(`Sync Complete! Found ${res.total_found} segments. Added ${res.new_added} new segments to local mapping.`, "success");
       // reload mappings
       const fetchedMappings: SegmentMapping[] = await invoke('get_segment_mappings');
+
+      const fetchedCalib: MapCalibration[] = await invoke('get_map_calibration');
+      setCalibrations(fetchedCalib);
+
       setMappings(fetchedMappings);
     } catch (err) {
       console.error("Failed to sync:", err);
@@ -119,10 +158,18 @@ export default function SettingPage() {
       });
     }
     const fetchedMappings: SegmentMapping[] = await invoke('get_segment_mappings');
+
+      const fetchedCalib: MapCalibration[] = await invoke('get_map_calibration');
+      setCalibrations(fetchedCalib);
+
     setMappings(fetchedMappings);
   };
 
   const [isTestingDb, setIsTestingDb] = useState(false);
+
+  const [calibrations, setCalibrations] = useState<MapCalibration[]>([]);
+  const [isSavingCalib, setIsSavingCalib] = useState(false);
+
   const [dbTestResult, setDbTestResult] = useState<string | null>(null);
 
   const handleTestConnection = async () => {
@@ -173,6 +220,7 @@ export default function SettingPage() {
   const tabs = [
     { id: 'time', label: 'Time & Date', icon: Clock },
     { id: 'mapping', label: 'Segment Mapping', icon: Link2 },
+    { id: 'map-calibration', label: 'Map Calibration', icon: Map },
     { id: 'users', label: 'User Management', icon: Users },
     { id: 'database', label: 'Database Connection', icon: Database },
     { id: 'threshold', label: 'Alarm Thresholds', icon: Thermometer },
@@ -418,6 +466,97 @@ export default function SettingPage() {
                     <input type="range" min="30" max="100" value={criticalThreshold} onChange={(e) => setCriticalThreshold(e.target.value)} className="w-full accent-red-500 h-2 bg-bg-base rounded-lg appearance-none cursor-pointer" />
                     <p className="text-xs text-text-secondary mt-2">Triggers 'ALARM' state, activates buzzer (if hardware connected), and requires manual operator acknowledgement.</p>
                   </div>
+                </div>
+              </div>
+            )}
+
+            
+            {/* TAB CONTENT: MAP CALIBRATION */}
+            {activeTab === 'map-calibration' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center mb-4">
+                  <p className="text-text-secondary font-mono text-sm max-w-xl">
+                    Configure physical coordinate mapping. Maps DTS distance metrics (meters) to graphical X/Y points on the P&ID diagram and Satellite coordinates.
+                  </p>
+                </div>
+                
+                <div className="bg-bg-surface border border-border rounded-xl overflow-hidden custom-scrollbar">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-text-secondary">
+                      <thead className="bg-bg-base border-b border-border">
+                        <tr>
+                          <th className="p-4 font-bold text-text-primary tracking-wider uppercase text-xs">Conveyor Group</th>
+                          <th className="p-4 font-bold text-text-primary tracking-wider uppercase text-xs">Start M</th>
+                          <th className="p-4 font-bold text-text-primary tracking-wider uppercase text-xs">End M</th>
+                          <th className="p-4 font-bold text-text-primary tracking-wider uppercase text-xs">Start (X,Y)</th>
+                          <th className="p-4 font-bold text-text-primary tracking-wider uppercase text-xs">End (X,Y)</th>
+                          <th className="p-4 font-bold text-text-primary tracking-wider uppercase text-xs text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {calibrations.map((calib, idx) => (
+                          <tr key={idx} className="border-b border-border/50 hover:bg-bg-base transition-colors">
+                            <td className="p-4">
+                              <span className="font-bold text-scada-primary bg-scada-primary/10 px-2 py-1 rounded">{calib.main_group}</span>
+                            </td>
+                            <td className="p-4">
+                              <input type="number" value={calib.start_m} onChange={e => {
+                                const newC = [...calibrations];
+                                newC[idx].start_m = parseInt(e.target.value);
+                                setCalibrations(newC);
+                              }} className="bg-bg-base border border-border rounded p-1 w-20 text-text-primary" />
+                            </td>
+                            <td className="p-4">
+                              <input type="number" value={calib.end_m} onChange={e => {
+                                const newC = [...calibrations];
+                                newC[idx].end_m = parseInt(e.target.value);
+                                setCalibrations(newC);
+                              }} className="bg-bg-base border border-border rounded p-1 w-20 text-text-primary" />
+                            </td>
+                            <td className="p-4 space-x-2">
+                              <input type="number" value={calib.start_svg_x} onChange={e => {
+                                const newC = [...calibrations];
+                                newC[idx].start_svg_x = parseFloat(e.target.value);
+                                setCalibrations(newC);
+                              }} className="bg-bg-base border border-border rounded p-1 w-16 text-text-primary" />
+                              <input type="number" value={calib.start_svg_y} onChange={e => {
+                                const newC = [...calibrations];
+                                newC[idx].start_svg_y = parseFloat(e.target.value);
+                                setCalibrations(newC);
+                              }} className="bg-bg-base border border-border rounded p-1 w-16 text-text-primary" />
+                            </td>
+                            <td className="p-4 space-x-2">
+                              <input type="number" value={calib.end_svg_x} onChange={e => {
+                                const newC = [...calibrations];
+                                newC[idx].end_svg_x = parseFloat(e.target.value);
+                                setCalibrations(newC);
+                              }} className="bg-bg-base border border-border rounded p-1 w-16 text-text-primary" />
+                              <input type="number" value={calib.end_svg_y} onChange={e => {
+                                const newC = [...calibrations];
+                                newC[idx].end_svg_y = parseFloat(e.target.value);
+                                setCalibrations(newC);
+                              }} className="bg-bg-base border border-border rounded p-1 w-16 text-text-primary" />
+                            </td>
+                            <td className="p-4 text-right">
+                              <button onClick={() => saveCalibration(calib)} className="text-xs font-bold text-scada-primary border border-scada-primary/50 hover:bg-scada-primary/10 px-3 py-1 rounded transition-colors disabled:opacity-50" disabled={isSavingCalib}>
+                                Save
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-5 mt-6">
+                  <h4 className="text-sm font-bold text-blue-400 mb-2">How Interpolation Works</h4>
+                  <p className="text-xs text-blue-400/80 mb-2">
+                    When an alarm occurs at meter <strong>M</strong> on a conveyor group, the system checks the corresponding Start/End M distance bounds above.
+                  </p>
+                  <p className="text-xs text-blue-400/80">
+                    It calculates the percentage <code>(M - Start_M) / (End_M - Start_M)</code> and uses it to automatically plot a warning pin precisely on the SVG diagram between <strong>Start (X,Y)</strong> and <strong>End (X,Y)</strong>!
+                  </p>
                 </div>
               </div>
             )}
