@@ -28,6 +28,8 @@ export default function ChartPage() {
   // Spatial Mode State
   const [mappings, setMappings] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string>('');
+  const [warningThreshold, setWarningThreshold] = useState(45);
+  const [criticalThreshold, setCriticalThreshold] = useState(60);
   const [spatialData, setSpatialData] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(true);
@@ -40,6 +42,10 @@ export default function ChartPage() {
     const id = localStorage.getItem('userId');
     if (role) setUserRole(role);
     if (id) setUserId(id);
+    invoke<Record<string, string>>("get_all_settings").then(settings => {
+      if (settings["warning_threshold"]) setWarningThreshold(Number(settings["warning_threshold"]));
+      if (settings["critical_threshold"]) setCriticalThreshold(Number(settings["critical_threshold"]));
+    }).catch(console.error);
     
     // Load mappings once for Spatial mode dropdown
     if ('__TAURI_INTERNALS__' in window) {
@@ -315,8 +321,8 @@ export default function ChartPage() {
                 <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                 
                 
-                <ReferenceLine y={45} stroke="#eab308" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'WARNING THRESHOLD', fill: '#eab308', fontSize: 10, fontWeight: 'bold' }} />
-                <ReferenceLine y={60} stroke="#ef4444" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'DANGER THRESHOLD', fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }} />
+                <ReferenceLine y={warningThreshold} stroke="#eab308" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'WARNING THRESHOLD', fill: '#eab308', fontSize: 10, fontWeight: 'bold' }} />
+                <ReferenceLine y={criticalThreshold} stroke="#ef4444" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'DANGER THRESHOLD', fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }} />
 
                 
                 {histGroups.map((name, i) => (
@@ -325,7 +331,7 @@ export default function ChartPage() {
               </LineChart>
             ) : (
               (() => {
-                const dynamicColor = stats.max >= 60 ? '#ef4444' : (stats.max >= 45 ? '#eab308' : '#10b981');
+                const dynamicColor = stats.max >= criticalThreshold ? '#ef4444' : (stats.max >= warningThreshold ? '#eab308' : '#10b981');
                 return (
                   <AreaChart data={spatialData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                     <defs>
@@ -344,8 +350,8 @@ export default function ChartPage() {
                       labelFormatter={(v) => `Distance: ${v} meters`}
                     />
                     
-                    <ReferenceLine y={45} stroke="#eab308" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'WARNING THRESHOLD', fill: '#eab308', fontSize: 10, fontWeight: 'bold' }} />
-                    <ReferenceLine y={60} stroke="#ef4444" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'DANGER THRESHOLD', fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }} />
+                    <ReferenceLine y={warningThreshold} stroke="#eab308" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'WARNING THRESHOLD', fill: '#eab308', fontSize: 10, fontWeight: 'bold' }} />
+                    <ReferenceLine y={criticalThreshold} stroke="#ef4444" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'DANGER THRESHOLD', fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }} />
                     
                     <Area type="monotone" dataKey="temp" name="Temperature (°C)" stroke={dynamicColor} strokeWidth={2} fillOpacity={1} fill="url(#colorTemp)" />
                   </AreaChart>

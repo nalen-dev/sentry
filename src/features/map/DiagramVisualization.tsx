@@ -58,21 +58,21 @@ export default function DiagramVisualization({ isFullscreen, segments, warningTh
   // Hardcoded polylines for exact physical loops. 
   // Arrays are reversed so that index 0 is always the side CLOSER to the Control Room (0 meters).
   const SUBGROUP_PATHS: Record<string, number[][]> = {
-    // TCM16 Groups (Left to Right per user specs: Horizontal -> Loop -> Next Horizontal)
-    'TN12': [[60, 314], [60, 372], [60, 314], [130, 314]],
-    'TN23': [[130, 314], [130, 372], [130, 314], [200, 314]],
-    'TN34': [[200, 314], [200, 372], [200, 314], [270, 314]],
-    'TN45': [[270, 314], [270, 372], [270, 314], [340, 314]],
-    'TN56': [[340, 314], [340, 372], [340, 314], [410, 314]],
-    'TN6CR': [[410, 314], [410, 372], [410, 314], [513, 314], [513, 360]],
-    'TCM6CR': [[410, 314], [410, 372], [410, 314], [513, 314], [513, 360]],
+    // TCM16 Groups (Right to Left: 0m is at Control Room, so fiber travels CR -> TCM6 -> TCM5 ...)
+    'TN12': [[130, 314], [60, 314], [60, 372], [60, 314]],
+    'TN23': [[200, 314], [130, 314], [130, 372], [130, 314]],
+    'TN34': [[270, 314], [200, 314], [200, 372], [200, 314]],
+    'TN45': [[340, 314], [270, 314], [270, 372], [270, 314]],
+    'TN56': [[410, 314], [340, 314], [340, 372], [340, 314]],
+    'TN6CR': [[513, 314], [410, 314], [410, 372], [410, 314]],
+    'TCM6CR': [[513, 314], [410, 314], [410, 372], [410, 314]],
 
     // BEK34 Groups (Right to Left: CR -> BEK4 -> BEK3)
-    'BEK4CR': [[513, 360], [513, 282], [305, 282]], 
+    'BEK4CR': [[513, 282], [305, 282]], 
     'BE34M': [[305, 282], [305, 220], [305, 282], [235, 282], [235, 220]],
 
     // BEK56 Groups (Right to Left: CR -> BEK6 -> BEK5)
-    'BEK6CR': [[513, 360], [513, 274], [445, 274]], 
+    'BEK6CR': [[513, 274], [445, 274]], 
     'BEK56M': [[445, 274], [445, 220], [445, 274], [375, 274], [375, 220]]
   };
 
