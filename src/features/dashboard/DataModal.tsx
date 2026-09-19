@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { List, X, Grid, ChevronDown, ChevronUp, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { List, X, Grid, ChevronDown, ChevronUp, MapPin, ChevronLeft, ChevronRight , Search } from 'lucide-react';
 import { SegmentData } from '../../components/SegmentDetailModal';
 
 interface DataModalProps {
@@ -13,6 +13,9 @@ export default function DataModal({ onClose, areas, setSelectedSegment }: DataMo
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [groupPages, setGroupPages] = useState<Record<string, number>>({});
   const [tablePage, setTablePage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterGroup, setFilterGroup] = useState<string>('All');
+  const [sortBy, setSortBy] = useState<string>('default');
 
   const toggleGroup = (groupName: string) => {
     setExpandedGroups(prev => ({
@@ -31,10 +34,33 @@ export default function DataModal({ onClose, areas, setSelectedSegment }: DataMo
 
 
 
+  const filteredAreas = useMemo(() => {
+    let result = [...areas];
+    if (filterGroup !== 'All') {
+      result = result.filter(a => a.mainGroup === filterGroup);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(a => a.name.toLowerCase().includes(q));
+    }
+    if (viewMode === 'table') {
+      if (sortBy === 'temp_desc') {
+        result.sort((a, b) => (b.temp_max ?? b.temp) - (a.temp_max ?? a.temp));
+      } else if (sortBy === 'temp_asc') {
+        result.sort((a, b) => (a.temp_max ?? a.temp) - (b.temp_max ?? b.temp));
+      } else if (sortBy === 'dist_desc') {
+        result.sort((a, b) => (parseFloat(b.distance) || 0) - (parseFloat(a.distance) || 0));
+      } else if (sortBy === 'dist_asc') {
+        result.sort((a, b) => (parseFloat(a.distance) || 0) - (parseFloat(b.distance) || 0));
+      }
+    }
+    return result;
+  }, [areas, filterGroup, searchQuery, viewMode, sortBy]);
+
   // Group data
   const groupedData = useMemo(() => {
     const groups: Record<string, typeof areas> = {};
-    areas.forEach(area => {
+    filteredAreas.forEach(area => {
       const g = area.mainGroup === 'Unassigned' ? 'Not Set (Unassigned)' : area.mainGroup;
       if (!groups[g]) groups[g] = [];
       groups[g].push(area);
@@ -55,7 +81,7 @@ export default function DataModal({ onClose, areas, setSelectedSegment }: DataMo
     });
 
     return result.sort((a, b) => a.groupName.localeCompare(b.groupName));
-  }, [areas]);
+  }, [filteredAreas]);
 
 
   return (
@@ -93,6 +119,45 @@ export default function DataModal({ onClose, areas, setSelectedSegment }: DataMo
           >
             <X size={24} />
           </button>
+        </div>
+      </div>
+
+      {/* TOOLBAR */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4 p-4 border border-border bg-bg-panel rounded-xl shadow-md">
+        <div className="relative flex-1">
+          <input 
+            type="text" 
+            placeholder="Search segments..." 
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setTablePage(1); }}
+            className="w-full bg-bg-surface border border-border rounded-lg pl-10 pr-4 py-2 text-sm text-text-primary outline-none focus:border-scada-primary transition-colors"
+          />
+          <Search size={16} className="absolute left-3 top-2.5 text-text-secondary" />
+        </div>
+        <div className="flex gap-2 overflow-x-auto">
+          <select
+            value={filterGroup}
+            onChange={e => { setFilterGroup(e.target.value); setTablePage(1); }}
+            className="bg-bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-secondary font-bold outline-none focus:border-scada-primary whitespace-nowrap"
+          >
+            <option value="All">ALL GROUPS</option>
+            {Array.from(new Set(areas.map(a => a.mainGroup))).filter(g => g !== 'Unassigned').map(g => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
+          {viewMode === 'table' && (
+            <select
+              value={sortBy}
+              onChange={e => { setSortBy(e.target.value); setTablePage(1); }}
+              className="bg-bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-secondary font-bold outline-none focus:border-scada-primary whitespace-nowrap"
+            >
+              <option value="default">DEFAULT SORT</option>
+              <option value="temp_desc">HIGHEST TEMP</option>
+              <option value="temp_asc">LOWEST TEMP</option>
+              <option value="dist_desc">FURTHEST DISTANCE</option>
+              <option value="dist_asc">CLOSEST DISTANCE</option>
+            </select>
+          )}
         </div>
       </div>
 
@@ -199,7 +264,7 @@ export default function DataModal({ onClose, areas, setSelectedSegment }: DataMo
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {areas.slice((tablePage - 1) * 10, tablePage * 10).map((area) => (
+                {filteredAreas.slice((tablePage - 1) * 10, tablePage * 10).map((area) => (
                   <tr key={area.id} onClick={() => { setSelectedSegment(area); onClose(); }} className="cursor-pointer hover:bg-white/[0.02] transition-colors">
                     <td className="py-3 px-6 font-bold text-text-secondary text-sm">{area.mainGroup === 'Unassigned' ? 'Not Set' : area.mainGroup}</td>
                     <td className="py-3 px-6 font-bold text-text-primary">{area.name}</td>
@@ -219,12 +284,12 @@ export default function DataModal({ onClose, areas, setSelectedSegment }: DataMo
             </table>
           </div>
           {/* Table Pagination */}
-          {areas.length > 10 && (
+          {filteredAreas.length > 10 && (
             <div className="flex justify-between items-center px-6 py-3 bg-bg-surface border-t border-border">
-              <span className="text-xs text-text-secondary">Showing {(tablePage - 1) * 10 + 1} to {Math.min(tablePage * 10, areas.length)} of {areas.length} entries</span>
+              <span className="text-xs text-text-secondary">Showing {(tablePage - 1) * 10 + 1} to {Math.min(tablePage * 10, areas.length)} of {filteredAreas.length} entries</span>
               <div className="flex space-x-2">
                 <button onClick={() => setTablePage(p => p - 1)} disabled={tablePage === 1} className="px-3 py-1 bg-bg-panel rounded border border-border text-xs disabled:opacity-50 hover:bg-bg-surface transition-colors">Previous</button>
-                <button onClick={() => setTablePage(p => p + 1)} disabled={tablePage === Math.ceil(areas.length / 10)} className="px-3 py-1 bg-bg-panel rounded border border-border text-xs disabled:opacity-50 hover:bg-bg-surface transition-colors">Next</button>
+                <button onClick={() => setTablePage(p => p + 1)} disabled={tablePage === Math.ceil(filteredAreas.length / 10)} className="px-3 py-1 bg-bg-panel rounded border border-border text-xs disabled:opacity-50 hover:bg-bg-surface transition-colors">Next</button>
               </div>
             </div>
           )}

@@ -20,8 +20,8 @@ export default function ChartPage() {
   const [chartMode, setChartMode] = useState<ChartMode>('history');
   
   // History Mode State
-  const [timeRangeDays, setTimeRangeDays] = useState(0);
-  const [timeRangeHours, setTimeRangeHours] = useState(1); 
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [timeRangeHours, setTimeRangeHours] = useState(24); 
   const [histData, setHistData] = useState<any[]>([]);
   const [histGroups, setHistGroups] = useState<string[]>([]);
   
@@ -66,7 +66,7 @@ export default function ChartPage() {
         setLoading(true);
         
         if (chartMode === 'history') {
-          const minutes = (timeRangeDays * 24 * 60) + (timeRangeHours * 60);
+          const minutes = timeRangeHours * 60;
           const [data, mappingsData] = await Promise.all([
              invoke<any[]>('get_groups_history', { minutes }),
              invoke<any[]>('get_segment_mappings')
@@ -182,7 +182,7 @@ export default function ChartPage() {
     fetchData();
     const interval = setInterval(fetchData, 10000); 
     return () => { isMounted = false; clearInterval(interval); };
-  }, [timeRangeDays, timeRangeHours, chartMode, selectedGroup, mappings]);
+  }, [selectedDate, timeRangeHours, chartMode, selectedGroup, mappings]);
 
   const uniqueGroups = useMemo(() => Array.from(new Set(mappings.map(m => m.main_group))).filter(g => g !== 'Unassigned') as string[], [mappings]);
 
@@ -231,10 +231,10 @@ export default function ChartPage() {
             
             {chartMode === 'history' ? (
               <div className="flex bg-bg-panel border border-border rounded-lg overflow-hidden shadow-sm items-center px-2 py-1 space-x-2">
-                <span className="text-xs font-bold text-text-secondary">RANGE:</span>
-                <input type="number" min="0" max="30" value={timeRangeDays} onChange={e => setTimeRangeDays(parseInt(e.target.value) || 0)} className="w-16 bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary outline-none" title="Days" />
-                <span className="text-xs font-mono text-text-secondary">Days</span>
-                <input type="number" min="0" max="23" value={timeRangeHours} onChange={e => setTimeRangeHours(parseInt(e.target.value) || 0)} className="w-16 bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary outline-none" title="Hours" />
+                <span className="text-xs font-bold text-text-secondary">DATE:</span>
+                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary outline-none" />
+                <span className="text-xs font-bold text-text-secondary ml-2">RANGE:</span>
+                <input type="number" min="1" max="24" value={timeRangeHours} onChange={e => setTimeRangeHours(parseInt(e.target.value) || 1)} className="w-16 bg-bg-surface border border-border rounded px-2 py-1 text-xs text-text-primary outline-none" title="Hours" />
                 <span className="text-xs font-mono text-text-secondary">Hours</span>
               </div>
             ) : (
@@ -314,33 +314,43 @@ export default function ChartPage() {
                 />
                 <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                 
-                <ReferenceLine y={60} stroke="#ef4444" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'WARNING THRESHOLD', fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }} />
+                
+                <ReferenceLine y={45} stroke="#eab308" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'WARNING THRESHOLD', fill: '#eab308', fontSize: 10, fontWeight: 'bold' }} />
+                <ReferenceLine y={60} stroke="#ef4444" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'DANGER THRESHOLD', fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }} />
+
                 
                 {histGroups.map((name, i) => (
                   <Line key={name} type="monotone" dataKey={name} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} activeDot={{ r: 6, strokeWidth: 0 }} connectNulls={true} />
                 ))}
               </LineChart>
             ) : (
-              <AreaChart data={spatialData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorTemp" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} vertical={false} />
-                <XAxis dataKey="distance" stroke="#9ca3af" fontSize={12} tickMargin={10} tickFormatter={(v) => `${v}m`} />
-                <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
-                  itemStyle={{ color: '#ef4444', fontWeight: 'bold' }}
-                  labelStyle={{ color: 'var(--text-secondary)' }}
-                  labelFormatter={(v) => `Distance: ${v} meters`}
-                />
-                <ReferenceLine y={60} stroke="#ef4444" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'WARNING THRESHOLD', fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }} />
-                
-                <Area type="monotone" dataKey="temp" name="Temperature (°C)" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorTemp)" />
-              </AreaChart>
+              (() => {
+                const dynamicColor = stats.max >= 60 ? '#ef4444' : (stats.max >= 45 ? '#eab308' : '#10b981');
+                return (
+                  <AreaChart data={spatialData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorTemp" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={dynamicColor} stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor={dynamicColor} stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} vertical={false} />
+                    <XAxis dataKey="distance" stroke="#9ca3af" fontSize={12} tickMargin={10} tickFormatter={(v) => `${v}m`} />
+                    <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
+                      itemStyle={{ color: dynamicColor, fontWeight: 'bold' }}
+                      labelStyle={{ color: 'var(--text-secondary)' }}
+                      labelFormatter={(v) => `Distance: ${v} meters`}
+                    />
+                    
+                    <ReferenceLine y={45} stroke="#eab308" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'WARNING THRESHOLD', fill: '#eab308', fontSize: 10, fontWeight: 'bold' }} />
+                    <ReferenceLine y={60} stroke="#ef4444" strokeDasharray="5 5" label={{ position: 'insideTopLeft', value: 'DANGER THRESHOLD', fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }} />
+                    
+                    <Area type="monotone" dataKey="temp" name="Temperature (°C)" stroke={dynamicColor} strokeWidth={2} fillOpacity={1} fill="url(#colorTemp)" />
+                  </AreaChart>
+                );
+              })()
             )}
           </ResponsiveContainer>
           )}

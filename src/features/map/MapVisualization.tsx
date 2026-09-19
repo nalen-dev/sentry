@@ -155,7 +155,7 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom }: 
         {mapZoom < 18 && (
           <Polyline 
             positions={BC_MAIN_COORDINATES} 
-            pathOptions={{ color: '#43b581', weight: 5 }}
+            pathOptions={{ color: '#3b82f6', weight: 5 }}
           >
             <Tooltip sticky>FO CABLE BUNDLE (A, B, C, D)</Tooltip>
           </Polyline>
@@ -166,30 +166,30 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom }: 
           <>
             <Polyline 
               positions={BC_MAIN_COORDINATES.slice(9).map(p => [p[0] + 0.000025, p[1] - 0.000025])} 
-              pathOptions={{ color: '#43b581', weight: 3 }}
+              pathOptions={{ color: '#3b82f6', weight: 3 }}
             >
-              <Tooltip sticky>CABLE A - Normal</Tooltip>
+              <Tooltip sticky>CABLE A</Tooltip>
             </Polyline>
 
             <Polyline 
               positions={BC_MAIN_COORDINATES.slice(5).map(p => [p[0] + 0.000008, p[1] - 0.000008])} 
-              pathOptions={{ color: '#eab308', weight: 3 }}
+              pathOptions={{ color: '#3b82f6', weight: 3 }}
             >
-              <Tooltip sticky>CABLE B - Warning</Tooltip>
+              <Tooltip sticky>CABLE B</Tooltip>
             </Polyline>
 
             <Polyline 
               positions={BC_MAIN_COORDINATES.map(p => [p[0] - 0.000008, p[1] + 0.000008])} 
-              pathOptions={{ color: '#f04747', weight: 3, className: 'animate-pulse' }}
+              pathOptions={{ color: '#3b82f6', weight: 3 }}
             >
-              <Tooltip sticky>CABLE C - Danger (Overheat)</Tooltip>
+              <Tooltip sticky>CABLE C</Tooltip>
             </Polyline>
 
             <Polyline 
               positions={BC_MAIN_COORDINATES.map(p => [p[0] - 0.000025, p[1] + 0.000025])} 
-              pathOptions={{ color: '#43b581', weight: 3 }}
+              pathOptions={{ color: '#3b82f6', weight: 3 }}
             >
-              <Tooltip sticky>CABLE D - Normal</Tooltip>
+              <Tooltip sticky>CABLE D</Tooltip>
             </Polyline>
           </>
         )}
@@ -204,7 +204,7 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom }: 
             <React.Fragment key={`foD-group-${idx}`}>
               <Polyline 
                 positions={[sensor.coord, targetPoint]}
-                pathOptions={{ color: '#43b581', weight: 3 }}
+                pathOptions={{ color: '#3b82f6', weight: 3 }}
               >
                 <Tooltip sticky>Tunnel connected to FO D</Tooltip>
               </Polyline>
@@ -227,7 +227,7 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom }: 
             <React.Fragment key={`foB-group-${idx}`}>
               <Polyline 
                 positions={[sensor.coord, targetPoint]}
-                pathOptions={{ color: '#eab308', weight: 3 }}
+                pathOptions={{ color: '#3b82f6', weight: 3 }}
               >
                 <Tooltip sticky>Tunnel connected to FO B</Tooltip>
               </Polyline>
@@ -249,7 +249,7 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom }: 
             <React.Fragment key={`foA-group-${idx}`}>
               <Polyline 
                 positions={[sensor.coord, targetPoint]}
-                pathOptions={{ color: '#43b581', weight: 3 }}
+                pathOptions={{ color: '#3b82f6', weight: 3 }}
               >
                 <Tooltip sticky>Tunnel connected to FO A</Tooltip>
               </Polyline>
@@ -265,7 +265,7 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom }: 
         {/* BC MAIN 02 */}
         <Polyline 
           positions={BC_MAIN_02_COORDINATES} 
-          pathOptions={{ color: '#43b581', weight: 5 }}
+          pathOptions={{ color: '#3b82f6', weight: 5 }}
         >
           <Tooltip sticky>BC MAIN 02 - FO CABLE</Tooltip>
         </Polyline>

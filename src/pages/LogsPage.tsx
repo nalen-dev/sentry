@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { exportElementToPDF } from '../utils/exportPdf';
-import { History, Calendar, Download, AlertTriangle, Info, AlertCircle, Search, FileText } from 'lucide-react';
+import { History, Download, AlertTriangle, Info, AlertCircle, Search, FileText } from 'lucide-react';
 import TopNavbar from '../components/layout/TopNavbar';
 
 
@@ -25,13 +25,15 @@ export default function LogsPage() {
   const [userId, setUserId] = useState('OP-7729');
   
   const [logs, setLogs] = useState<SystemLog[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>('');
   const [, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
     const fetchLogs = async () => {
       try {
-        const alarms: any[] = await invoke('get_alarms');
+        const dateParam = selectedDate ? selectedDate : null;
+        const alarms: any[] = await invoke('get_alarms', { date: dateParam });
         const mappings: any[] = await invoke('get_segment_mappings');
         
         if (!isMounted) return;
@@ -73,7 +75,7 @@ export default function LogsPage() {
     };
     
     fetchLogs();
-  }, []);
+  }, [selectedDate]);
 
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -84,7 +86,7 @@ export default function LogsPage() {
     const id = localStorage.getItem('userId');
     if (role) setUserRole(role);
     if (id) setUserId(id);
-  }, []);
+  }, [selectedDate]);
 
   useEffect(() => {
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
@@ -137,9 +139,7 @@ export default function LogsPage() {
           </div>
 
           <div className="flex space-x-3">
-            <button className="flex items-center px-4 py-2 bg-bg-panel border border-border rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface transition-colors font-bold text-sm shadow-sm">
-              <Calendar size={16} className="mr-2" /> SELECT DATE RANGE
-            </button>
+            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="flex items-center px-4 py-2 bg-bg-panel border border-border rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface transition-colors font-bold text-sm shadow-sm outline-none" />
             <button onClick={() => exportElementToPDF('logs-export-container', `DTS_Logs_${new Date().getTime()}`)} className="flex items-center px-4 py-2 bg-bg-panel border border-border rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface transition-colors font-bold text-sm shadow-sm">
               <Download size={16} className="mr-2" /> EXPORT PDF
             </button>

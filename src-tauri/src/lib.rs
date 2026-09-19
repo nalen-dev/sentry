@@ -384,6 +384,7 @@ pub struct GroupHistoryPoint {
 #[tauri::command]
 async fn get_groups_history(
     minutes: i32,
+    date: Option<String>,
     state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
 ) -> Result<Vec<GroupHistoryPoint>, String> {
     let mappings: Vec<crate::domain::app_models::SegmentMapping> = sqlx::query_as("SELECT * FROM segment_mappings WHERE main_group != 'Unassigned'")
@@ -406,10 +407,17 @@ async fn get_groups_history(
     let mut global_max_time: Option<chrono::DateTime<chrono::Utc>> = None;
     
     for map in mappings {
-        let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
-            .bind(map.dts_ch).bind(map.dts_code).bind(limit)
-            .fetch_all(&mysql_pool)
-            .await.unwrap_or_default();
+        let rows: Vec<HistRow> = if let Some(ref d) = date {
+            sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? AND DATE(CreationTime) = ? ORDER BY CreationTime DESC LIMIT ?")
+                .bind(map.dts_ch).bind(map.dts_code).bind(d).bind(limit)
+                .fetch_all(&mysql_pool)
+                .await.unwrap_or_default()
+        } else {
+            sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
+                .bind(map.dts_ch).bind(map.dts_code).bind(limit)
+                .fetch_all(&mysql_pool)
+                .await.unwrap_or_default()
+        };
             
         if !rows.is_empty() {
             if let Some(ct) = rows[0].CreationTime {
@@ -484,7 +492,7 @@ pub struct AlarmLog {
 }
 
 #[tauri::command]
-async fn get_alarms(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<Vec<AlarmLog>, String> {
+async fn get_alarms(date: Option<String>, state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<Vec<AlarmLog>, String> {
     let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
         .fetch_all(&*state).await.map_err(|e| e.to_string())?;
         
@@ -500,9 +508,14 @@ async fn get_alarms(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::Sta
     #[allow(non_snake_case)]
     struct AlarmRow { ID: i32, CreationTime: Option<chrono::DateTime<chrono::Utc>>, Ch: Option<i32>, Code: Option<i32>, AlarmPoint: Option<i32>, AlarmCode: Option<i32>, AlarmTemp: Option<i32>, AlarmResetTime: Option<chrono::DateTime<chrono::Utc>> }
     
-    let rows: Vec<AlarmRow> = sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog ORDER BY CreationTime DESC LIMIT 50")
-        .fetch_all(&mysql_pool)
-        .await.map_err(|e| e.to_string())?;
+    let rows: Vec<AlarmRow> = if let Some(ref d) = date {
+        sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog WHERE DATE(CreationTime) = ? ORDER BY CreationTime DESC LIMIT 1000")
+            .bind(d)
+            .fetch_all(&mysql_pool).await.map_err(|e| e.to_string())?
+    } else {
+        sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog ORDER BY CreationTime DESC LIMIT 50")
+            .fetch_all(&mysql_pool).await.map_err(|e| e.to_string())?
+    };
         
     let mut alarms = Vec::new();
     for r in rows {

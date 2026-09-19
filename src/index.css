@@ -87,6 +87,6 @@ body {
   display: none !important; /* Hilangkan panah default leaflet */
 }
 
-.custom-tunnel-tooltip.fo-d { color: #43b581 !important; border-color: rgba(67, 181, 129, 0.3) !important; }
-.custom-tunnel-tooltip.fo-b { color: #eab308 !important; border-color: rgba(234, 179, 8, 0.3) !important; }
-.custom-tunnel-tooltip.fo-a { color: #43b581 !important; border-color: rgba(67, 181, 129, 0.3) !important; }
+.custom-tunnel-tooltip.fo-d { color: #3b82f6 !important; border-color: rgba(59, 130, 246, 0.3) !important; }
+.custom-tunnel-tooltip.fo-b { color: #3b82f6 !important; border-color: rgba(59, 130, 246, 0.3) !important; }
+.custom-tunnel-tooltip.fo-a { color: #3b82f6 !important; border-color: rgba(59, 130, 246, 0.3) !important; }
