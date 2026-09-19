@@ -31,6 +31,35 @@ export default function MappingGrid({ mappings, onUpdateBulk }: MappingGridProps
   const [formEndM, setFormEndM] = useState<number | ''>('');
   const [formCustomName, setFormCustomName] = useState('');
 
+  // Sync form when selection changes
+  React.useEffect(() => {
+    if (selectedIds.size > 0) {
+      const selected = mappings.filter(m => selectedIds.has(m.id));
+      
+      // Check if all selected share the same properties
+      const allSameMain = selected.every(m => m.main_group === selected[0].main_group);
+      const allSameSub = selected.every(m => m.sub_group === selected[0].sub_group);
+      
+      setFormMainGroup(allSameMain ? (selected[0].main_group || 'Unassigned') : 'Unassigned');
+      setFormSubGroup(allSameSub ? (selected[0].sub_group || '') : '');
+      
+      if (selectedIds.size === 1) {
+        setFormStartM(selected[0].start_m !== null && selected[0].start_m !== undefined ? selected[0].start_m : '');
+        setFormEndM(selected[0].end_m !== null && selected[0].end_m !== undefined ? selected[0].end_m : '');
+        setFormCustomName(selected[0].custom_name || '');
+      } else {
+        setFormStartM('');
+        setFormEndM('');
+        setFormCustomName('');
+      }
+    } else {
+      setFormSubGroup('');
+      setFormStartM('');
+      setFormEndM('');
+      setFormCustomName('');
+    }
+  }, [selectedIds, mappings]);
+
   // Group Colors mapping
   const groupColors: Record<string, string> = {
     'Unassigned': 'bg-bg-panel border-border',

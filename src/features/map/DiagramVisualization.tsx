@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 
 interface MapCalibration {
   main_group: string;
+  sub_group?: string;
   start_m: number;
   end_m: number;
   start_svg_x: number;
@@ -64,6 +65,7 @@ export default function DiagramVisualization({ isFullscreen, segments, warningTh
     'TN45': [[270, 314], [270, 372], [270, 314], [340, 314]],
     'TN56': [[340, 314], [340, 372], [340, 314], [410, 314]],
     'TN6CR': [[410, 314], [410, 372], [410, 314], [513, 314], [513, 360]],
+    'TCM6CR': [[410, 314], [410, 372], [410, 314], [513, 314], [513, 360]],
 
     // BEK34 Groups (Right to Left: CR -> BEK4 -> BEK3)
     'BEK4CR': [[513, 360], [513, 282], [305, 282]], 
@@ -136,7 +138,7 @@ const renderDynamicSegments = () => {
         const isAlarm = strokeColor.includes('red-500') || strokeColor.includes('yellow-500');
 
         // IF this group is one of our special polyline paths, use it!
-        const polyPoints = SUBGROUP_PATHS[calib.main_group];
+        const polyPoints = SUBGROUP_PATHS[seg.sub_group || ''];
         
         if (polyPoints) {
           const lines = interpolatePoly(polyPoints, r1, r2);
