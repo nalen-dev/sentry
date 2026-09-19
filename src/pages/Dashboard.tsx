@@ -433,7 +433,7 @@ export default function Dashboard() {
           isFullscreen={isFullscreen}
           dummyLogs={alarms.map(a => ({
             id: a.id,
-            time: a.time,
+            time: new Date(a.time).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
             msg: `Ch${a.ch}-C${a.code} at ${a.distance}m: ${a.alarm_type === 1 ? 'High Temp' : a.alarm_type === 2 ? 'Low Temp' : a.alarm_type === 3 ? 'Temp Rise' : a.alarm_type === 4 ? 'Fiber Break' : 'Anti-tamper'} (${a.temp}°C)`,
             type: a.is_active ? 'error' : 'info'
           }))}

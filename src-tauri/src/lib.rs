@@ -519,7 +519,7 @@ async fn get_alarms(date: Option<String>, state: tauri::State<'_, SqlitePool>, m
         
     let mut alarms = Vec::new();
     for r in rows {
-        let t = r.CreationTime.map(|ct| ct.with_timezone(&chrono::Local).format("%H:%M:%S").to_string()).unwrap_or_default();
+        let t = r.CreationTime.map(|ct| ct.with_timezone(&chrono::Local).to_rfc3339()).unwrap_or_default();
         let is_active = r.AlarmResetTime.is_none();
         alarms.push(AlarmLog {
             id: r.ID, time: t, ch: r.Ch.unwrap_or(0), code: r.Code.unwrap_or(0),
