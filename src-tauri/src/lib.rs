@@ -530,6 +530,17 @@ async fn get_alarms(date: Option<String>, state: tauri::State<'_, SqlitePool>, m
     Ok(alarms)
 }
 
+
+#[tauri::command]
+async fn ack_all_alarms(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<(), String> {
+    let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
+    sqlx::query("UPDATE alarmlog SET AlarmResetTime = NOW() WHERE AlarmResetTime IS NULL")
+        .execute(&mysql_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
 async fn test_db_connection(
     host: String,
@@ -646,7 +657,7 @@ pub fn run() {
             get_live_segments,
             get_segment_curve,
             get_segment_history, get_groups_history,
-            get_alarms,
+            get_alarms, ack_all_alarms,
             update_segment_mapping,
             test_db_connection,
             get_map_calibration,

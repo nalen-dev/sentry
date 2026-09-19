@@ -3,53 +3,25 @@ import re
 with open('src-tauri/src/lib.rs', 'r') as f:
     code = f.read()
 
-# 1. Patch get_groups_history
-old_get_groups_history = """async fn get_groups_history(
-    minutes: i32,
-    state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
-) -> Result<Vec<GroupHistoryPoint>, String> {"""
+# Add ack_all_alarms
+ack_command = """
+#[tauri::command]
+async fn ack_all_alarms(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<(), String> {
+    let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
+    sqlx::query("UPDATE alarmlog SET AlarmResetTime = NOW() WHERE AlarmResetTime IS NULL")
+        .execute(&mysql_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
 
-new_get_groups_history = """async fn get_groups_history(
-    minutes: i32,
-    date: Option<String>,
-    state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
-) -> Result<Vec<GroupHistoryPoint>, String> {"""
+#[tauri::command]
+async fn test_db_connection("""
 
-code = code.replace(old_get_groups_history, new_get_groups_history)
+code = code.replace("#[tauri::command]\nasync fn test_db_connection(", ack_command)
 
-old_query = """let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
-            .bind(map.dts_ch).bind(map.dts_code).bind(limit)"""
-
-new_query = """let rows: Vec<HistRow> = if let Some(ref d) = date {
-            sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? AND DATE(CreationTime) = ? ORDER BY CreationTime DESC LIMIT ?")
-                .bind(map.dts_ch).bind(map.dts_code).bind(d).bind(limit)
-        } else {
-            sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
-                .bind(map.dts_ch).bind(map.dts_code).bind(limit)
-        };
-        let rows: Vec<HistRow> = rows"""
-
-code = code.replace(old_query, new_query)
-
-# 2. Patch get_alarms
-old_get_alarms = """async fn get_alarms(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<Vec<AlarmLog>, String> {"""
-new_get_alarms = """async fn get_alarms(date: Option<String>, state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<Vec<AlarmLog>, String> {"""
-
-code = code.replace(old_get_alarms, new_get_alarms)
-
-old_alarm_query = """let rows: Vec<AlarmRow> = sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog ORDER BY CreationTime DESC LIMIT 50")
-        .fetch_all(&mysql_pool)"""
-
-new_alarm_query = """let rows: Vec<AlarmRow> = if let Some(ref d) = date {
-        sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog WHERE DATE(CreationTime) = ? ORDER BY CreationTime DESC LIMIT 1000")
-            .bind(d)
-            .fetch_all(&mysql_pool)
-    } else {
-        sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog ORDER BY CreationTime DESC LIMIT 50")
-            .fetch_all(&mysql_pool)
-    }"""
-
-code = code.replace(old_alarm_query, new_alarm_query)
+# Add to invoke handler
+code = code.replace("get_alarms,", "get_alarms, ack_all_alarms,")
 
 with open('src-tauri/src/lib.rs', 'w') as f:
     f.write(code)

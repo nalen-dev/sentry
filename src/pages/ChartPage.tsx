@@ -21,7 +21,7 @@ export default function ChartPage() {
   
   // History Mode State
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [timeRangeHours, setTimeRangeHours] = useState(24); 
+  const [timeRangeHours, setTimeRangeHours] = useState(1); 
   const [histData, setHistData] = useState<any[]>([]);
   const [histGroups, setHistGroups] = useState<string[]>([]);
   
