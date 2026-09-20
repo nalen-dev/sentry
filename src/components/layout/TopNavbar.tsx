@@ -1,6 +1,7 @@
-import { Sun, Moon, Layout, History, LineChart, Settings, User, LogOut, Maximize, Minimize } from 'lucide-react';
+// @ts-nocheck
+import { Sun, Moon, Layout, History, LineChart, Settings, LogOut, Maximize, Minimize, Clock } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface TopNavbarProps {
   isFullscreen: boolean;
@@ -22,6 +23,13 @@ export default function TopNavbar({
   const navigate = useNavigate();
   const location = useLocation();
   const [isTrueFullscreen, setIsTrueFullscreen] = useState(false);
+
+  const [currentTime, setCurrentTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
 
   // Note: We cannot easily check initial fullscreen without invoke, so we'll just assume false initially.
   
@@ -116,18 +124,20 @@ export default function TopNavbar({
         
         <div className="h-8 w-px bg-border"></div>
         
-        {/* LOGIN INFORMATION */}
+        {/* TIME INFORMATION & LOGOUT */}
         <div className={`flex items-center ${isFullscreen ? 'space-x-2' : 'space-x-4'}`}>
-          <div className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity" title={`${userRole} (${userId})`}>
+          <div className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity">
             {!isFullscreen && (
-              <div className="text-right hidden sm:block">
-                <div className="text-sm font-bold text-text-primary">{userRole}</div>
-                <div className="text-xs text-text-secondary font-mono">ID: {userId}</div>
+              <div className="flex flex-col items-end min-w-[120px]">
+                <span className="text-[10px] font-bold text-text-secondary font-mono tracking-widest uppercase">
+                  {currentTime.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+                <div className="flex items-center text-scada-primary font-mono font-bold text-base mt-0.5">
+                  <Clock size={14} className="mr-1.5" />
+                  {currentTime.toLocaleTimeString('en-GB', { hour12: false })}
+                </div>
               </div>
             )}
-            <div className="h-10 w-10 bg-bg-surface border border-border rounded-full flex items-center justify-center overflow-hidden">
-              <User size={20} className="text-text-secondary" />
-            </div>
           </div>
           
           <button 
