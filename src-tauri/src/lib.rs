@@ -45,7 +45,7 @@ async fn save_setting(key: String, value: String, state: tauri::State<'_, Sqlite
     if key.starts_with("db_") {
         let mut guard = mysql_state.0.lock().await;
         if let Some(pool) = guard.take() {
-            pool.close().await;
+             
         }
     }
     
