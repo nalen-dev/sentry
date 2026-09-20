@@ -408,8 +408,8 @@ async fn get_groups_history(
     
     for map in mappings {
         let rows: Vec<HistRow> = if let Some(ref d) = date {
-            sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? AND DATE(CreationTime) = ? ORDER BY CreationTime DESC LIMIT ?")
-                .bind(map.dts_ch).bind(map.dts_code).bind(d).bind(limit)
+            sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= ? AND CreationTime < DATE_ADD(?, INTERVAL 1 DAY) ORDER BY CreationTime DESC LIMIT ?")
+                .bind(map.dts_ch).bind(map.dts_code).bind(d.clone()).bind(d).bind(limit)
                 .fetch_all(&mysql_pool)
                 .await.unwrap_or_default()
         } else {
@@ -509,8 +509,8 @@ async fn get_alarms(date: Option<String>, state: tauri::State<'_, SqlitePool>, m
     struct AlarmRow { ID: i32, CreationTime: Option<chrono::DateTime<chrono::Utc>>, Ch: Option<i32>, Code: Option<i32>, AlarmPoint: Option<i32>, AlarmCode: Option<i32>, AlarmTemp: Option<i32>, AlarmResetTime: Option<chrono::DateTime<chrono::Utc>> }
     
     let rows: Vec<AlarmRow> = if let Some(ref d) = date {
-        sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog WHERE DATE(CreationTime) = ? ORDER BY CreationTime DESC LIMIT 1000")
-            .bind(d)
+        sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog WHERE CreationTime >= ? AND CreationTime < DATE_ADD(?, INTERVAL 1 DAY) ORDER BY CreationTime DESC LIMIT 1000")
+            .bind(d.clone()).bind(d)
             .fetch_all(&mysql_pool).await.map_err(|e| e.to_string())?
     } else {
         sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog ORDER BY CreationTime DESC LIMIT 50")
