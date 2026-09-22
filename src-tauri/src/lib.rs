@@ -41,70 +41,71 @@ async fn get_history_summary(
     let parsed_start = Local.from_local_datetime(&NaiveDateTime::parse_from_str(&start_dt, "%Y-%m-%d %H:%M:%S").map_err(|e| e.to_string())?).unwrap();
     let parsed_end = Local.from_local_datetime(&NaiveDateTime::parse_from_str(&end_dt, "%Y-%m-%d %H:%M:%S").map_err(|e| e.to_string())?).unwrap();
 
-    let mut mysql_pool = mysql_state.0.lock().await.clone();
-    if mysql_pool.is_none() {
-        let settings = get_all_settings(state.clone()).await.unwrap_or_default();
-        let mut db_host = String::from("192.168.1.64");
-        let mut db_port = String::from("58329");
-        let mut db_user = String::from("root");
-        let mut db_pass = String::from("l0mY4cH9H?h9");
-        let mut db_name = String::from("dtscontroler");
-        for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
-        let options = sqlx::mysql::MySqlConnectOptions::new().host(&db_host).port(db_port.parse().unwrap_or(3306)).username(&db_user).password(&db_pass).database(&db_name);
-        if let Ok(p) = sqlx::mysql::MySqlPoolOptions::new().connect_with(options).await {
-            *mysql_state.0.lock().await = Some(p.clone());
-            mysql_pool = Some(p);
-        }
-    }
-    
-    let mysql_pool = mysql_pool.ok_or("No database connection")?;
-
-    #[derive(sqlx::FromRow, Clone)]
-    #[allow(non_snake_case)]
-    struct HistRow { CreationTime: Option<chrono::DateTime<chrono::Local>>, TempAvg: Option<i32>, Ch: i32, Code: i32 }
-
-    // Fetch Max
-    let max_row: Option<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE CreationTime >= ? AND CreationTime <= ? ORDER BY TempAvg DESC LIMIT 1")
-        .bind(parsed_start).bind(parsed_end)
-        .fetch_optional(&mysql_pool)
-        .await.unwrap_or(None);
-
-    // Fetch Min
-    let min_row: Option<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE CreationTime >= ? AND CreationTime <= ? AND TempAvg >= 0 ORDER BY TempAvg ASC LIMIT 1")
-        .bind(parsed_start).bind(parsed_end)
-        .fetch_optional(&mysql_pool)
-        .await.unwrap_or(None);
-
-    if max_row.is_none() || min_row.is_none() {
-        return Ok(None);
-    }
-    
-    let max_row = max_row.unwrap();
-    let min_row = min_row.unwrap();
-
+    let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     let mappings = get_segment_mappings(state.clone()).await.unwrap_or_default();
     
-    let get_info = |ch: i32, code: i32| -> (String, String) {
-        if let Some(m) = mappings.iter().find(|m| m.dts_ch == ch && m.dts_code == code) {
-            let name = if let Some(c) = &m.custom_name { if c.is_empty() { m.original_name.clone() } else { c.clone() } } else { m.original_name.clone() };
-            (m.main_group.clone(), name)
-        } else {
-            ("Unknown".into(), format!("Ch{} Code{}", ch, code))
-        }
-    };
+    #[derive(sqlx::FromRow, Clone)]
+    #[allow(non_snake_case)]
+    struct HistRow { CreationTime: Option<chrono::DateTime<chrono::Local>>, TempAvg: Option<i32> }
 
-    let (max_grp, max_seg) = get_info(max_row.Ch, max_row.Code);
-    let (min_grp, min_seg) = get_info(min_row.Ch, min_row.Code);
+    let mut overall_max_temp: i32 = -999999;
+    let mut overall_max_time: String = String::new();
+    let mut overall_max_group: String = String::new();
+    let mut overall_max_segment: String = String::new();
+
+    let mut overall_min_temp: i32 = 999999;
+    let mut overall_min_time: String = String::new();
+    let mut overall_min_group: String = String::new();
+    let mut overall_min_segment: String = String::new();
+
+    let mut found_any = false;
+
+    for map in mappings {
+        if map.main_group == "Unassigned" {
+            continue;
+        }
+
+        let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= ? AND CreationTime <= ? ORDER BY CreationTime ASC LIMIT 2000")
+            .bind(map.dts_ch).bind(map.dts_code).bind(parsed_start).bind(parsed_end)
+            .fetch_all(&mysql_pool)
+            .await.unwrap_or_default();
+
+        let name = if let Some(c) = &map.custom_name { if c.is_empty() { map.original_name.clone() } else { c.clone() } } else { map.original_name.clone() };
+
+        for r in rows {
+            if let Some(t) = r.TempAvg {
+                if t >= 0 {
+                    found_any = true;
+                    if t > overall_max_temp {
+                        overall_max_temp = t;
+                        overall_max_time = r.CreationTime.map(|c| c.format("%H:%M:%S").to_string()).unwrap_or_default();
+                        overall_max_group = map.main_group.clone();
+                        overall_max_segment = name.clone();
+                    }
+                    if t < overall_min_temp {
+                        overall_min_temp = t;
+                        overall_min_time = r.CreationTime.map(|c| c.format("%H:%M:%S").to_string()).unwrap_or_default();
+                        overall_min_group = map.main_group.clone();
+                        overall_min_segment = name.clone();
+                    }
+                }
+            }
+        }
+    }
+
+    if !found_any {
+        return Ok(None);
+    }
 
     Ok(Some(HistorySummary {
-        max_temp: max_row.TempAvg.unwrap_or(0) as f32 / 10.0,
-        max_time: max_row.CreationTime.map(|c| c.format("%H:%M:%S").to_string()).unwrap_or_default(),
-        max_group: max_grp,
-        max_segment: max_seg,
-        min_temp: min_row.TempAvg.unwrap_or(0) as f32 / 10.0,
-        min_time: min_row.CreationTime.map(|c| c.format("%H:%M:%S").to_string()).unwrap_or_default(),
-        min_group: min_grp,
-        min_segment: min_seg,
+        max_temp: overall_max_temp as f32 / 10.0,
+        max_time: overall_max_time,
+        max_group: overall_max_group,
+        max_segment: overall_max_segment,
+        min_temp: overall_min_temp as f32 / 10.0,
+        min_time: overall_min_time,
+        min_group: overall_min_group,
+        min_segment: overall_min_segment,
     }))
 }
 
