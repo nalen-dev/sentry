@@ -396,87 +396,49 @@ async fn get_groups_history(
     #[allow(non_snake_case)]
     struct HistRow { CreationTime: Option<chrono::DateTime<chrono::Utc>>, TempAvg: Option<i32>, Ch: i32, Code: i32 }
     
-    let limit = minutes * 10;
-    
     struct FetchedSeg {
         group: String,
         rows: Vec<HistRow>,
     }
     
     let mut all_fetched: Vec<FetchedSeg> = Vec::new();
-    let mut global_max_time: Option<chrono::DateTime<chrono::Utc>> = None;
+    let limit = 2000;
     
     for map in mappings {
-        let rows: Vec<HistRow> = if let Some(ref d) = date {
-            sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= ? AND CreationTime < DATE_ADD(?, INTERVAL 1 DAY) ORDER BY CreationTime DESC LIMIT ?")
-                .bind(map.dts_ch).bind(map.dts_code).bind(d.clone()).bind(d).bind(limit)
-                .fetch_all(&mysql_pool)
-                .await.unwrap_or_default()
-        } else {
-            sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
-                .bind(map.dts_ch).bind(map.dts_code).bind(limit)
-                .fetch_all(&mysql_pool)
-                .await.unwrap_or_default()
-        };
+        let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= ? AND CreationTime <= ? ORDER BY CreationTime ASC LIMIT ?")
+            .bind(map.dts_ch).bind(map.dts_code).bind(&start_dt).bind(&end_dt).bind(limit)
+            .fetch_all(&mysql_pool)
+            .await.unwrap_or_default();
             
-        if !rows.is_empty() {
-            if let Some(ct) = rows[0].CreationTime {
-                if global_max_time.is_none() || ct > global_max_time.unwrap() {
-                    global_max_time = Some(ct);
-                }
-            }
-        }
         all_fetched.push(FetchedSeg { group: map.main_group.clone(), rows });
     }
     
     let mut group_data: std::collections::HashMap<String, std::collections::HashMap<String, Vec<f32>>> = std::collections::HashMap::new();
     
-    if let Some(max_time) = global_max_time {
-        let cutoff_time = max_time - chrono::Duration::minutes(minutes as i64);
-        
-        for seg in all_fetched {
-            for r in seg.rows {
-                if let Some(ct) = r.CreationTime {
-                    if ct < cutoff_time { continue; }
-                    
-                    let t_str = ct.with_timezone(&chrono::Local).format("%H:%M").to_string();
-                    let temp = r.TempAvg.unwrap_or(0) as f32 / 10.0;
-                    group_data
-                        .entry(seg.group.clone())
-                        .or_default()
-                        .entry(t_str)
-                        .or_default()
-                        .push(temp);
+    for seg in all_fetched {
+        let group_name = seg.group;
+        for r in seg.rows {
+            if let Some(ct) = r.CreationTime {
+                let time_str = ct.with_timezone(&chrono::Local).format("%H:%M").to_string();
+                let temp = r.TempAvg.unwrap_or(0) as f32 / 10.0;
+                if temp >= 0.0 {
+                    let entry = group_data.entry(time_str).or_default();
+                    entry.entry(group_name.clone()).or_default().push(temp);
                 }
             }
         }
     }
     
-    let mut all_times = std::collections::HashSet::new();
-    for times in group_data.values() {
-        for t in times.keys() {
-            all_times.insert(t.clone());
-        }
-    }
+    let mut points: Vec<GroupHistoryPoint> = group_data.into_iter().map(|(time, groups)| {
+        let max_groups = groups.into_iter().map(|(g, temps)| {
+            let max_temp = temps.into_iter().fold(f32::NEG_INFINITY, f32::max);
+            (g, max_temp)
+        }).collect();
+        GroupHistoryPoint { time, groups: max_groups }
+    }).collect();
     
-    let mut sorted_times: Vec<String> = all_times.into_iter().collect();
-    sorted_times.sort();
-    
-
-    
-    let mut results = Vec::new();
-    for t in sorted_times {
-        let mut groups_map = std::collections::HashMap::new();
-        for (g_name, times_map) in &group_data {
-            if let Some(temps) = times_map.get(&t) {
-                let max_temp = temps.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-                groups_map.insert(g_name.clone(), max_temp);
-            }
-        }
-        results.push(GroupHistoryPoint { time: t, groups: groups_map });
-    }
-    
-    Ok(results)
+    points.sort_by(|a, b| a.time.cmp(&b.time));
+    Ok(points)
 }
 
 #[derive(serde::Serialize)]
