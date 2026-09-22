@@ -383,8 +383,8 @@ pub struct GroupHistoryPoint {
 
 #[tauri::command]
 async fn get_groups_history(
-    minutes: i32,
-    date: Option<String>,
+    start_dt: String,
+    end_dt: String,
     state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
 ) -> Result<Vec<GroupHistoryPoint>, String> {
     let mappings: Vec<crate::domain::app_models::SegmentMapping> = sqlx::query_as("SELECT * FROM segment_mappings WHERE main_group != 'Unassigned'")

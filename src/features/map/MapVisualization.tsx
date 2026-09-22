@@ -199,7 +199,7 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, se
                 pathOptions={{ 
                   color: g.displayColor, 
                   weight: (mapZoom >= 18 || isFullscreen) ? 5 : (g.id.includes('BC4 A') ? 8 : 4),
-                  className: g.isBlinking ? (g.status === 'Danger' ? 'animate-pulse' : 'animate-pulse opacity-80') : ''
+                  className: g.isBlinking ? (g.status === 'Danger' ? 'map-blink-danger-svg' : 'map-blink-warning-svg') : ''
                 }}
               />
 
@@ -210,7 +210,7 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, se
                     offset={g.offset as any} 
                     opacity={1} 
                     permanent 
-                    className={`custom-group-card cursor-pointer ${g.isBlinking ? (g.status === 'Danger' ? 'border-red-500 animate-pulse' : 'border-yellow-500 animate-pulse') : 'border-border'}`}
+                    className="custom-group-card cursor-pointer"
                   >
                     <div 
                       onClick={() => {
@@ -218,7 +218,7 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, se
                            handleGroupClick(g.criticalSegment, g.maxTemp, g.status, g.isAlarm, g.id);
                         }
                       }}
-                      className="flex flex-col bg-bg-panel rounded-lg shadow-lg overflow-hidden border border-border min-w-[150px] pointer-events-auto hover:scale-105 transition-transform"
+                      className={`flex flex-col bg-bg-panel rounded-lg shadow-lg overflow-hidden border min-w-[150px] pointer-events-auto hover:scale-105 transition-transform ${g.isBlinking ? (g.status === 'Danger' ? 'map-blink-danger-ui border-red-500' : 'map-blink-warning-ui border-yellow-500') : 'border-border'}`}
                     >
                       <div className="flex items-center justify-between px-3 py-1.5" style={{ backgroundColor: `${g.displayColor}20`, borderBottom: `2px solid ${g.displayColor}` }}>
                         <span className="font-bold text-xs tracking-widest text-text-primary uppercase">{g.id}</span>

@@ -102,3 +102,34 @@ body {
 .leaflet-tooltip.custom-group-card::before {
   display: none !important;
 }
+
+/* Custom Map Blinking Animations */
+@keyframes map-blink-danger {
+  0% { opacity: 1; stroke-opacity: 1; }
+  50% { opacity: 0.1; stroke-opacity: 0.1; }
+  100% { opacity: 1; stroke-opacity: 1; }
+}
+
+@keyframes map-blink-warning {
+  0% { opacity: 1; stroke-opacity: 1; }
+  50% { opacity: 0.4; stroke-opacity: 0.4; }
+  100% { opacity: 1; stroke-opacity: 1; }
+}
+
+.map-blink-danger-svg {
+  animation: map-blink-danger 0.5s infinite !important;
+}
+
+.map-blink-warning-svg {
+  animation: map-blink-warning 1s infinite !important;
+}
+
+.map-blink-danger-ui {
+  animation: map-blink-danger 0.5s infinite !important;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.8) !important;
+}
+
+.map-blink-warning-ui {
+  animation: map-blink-warning 1s infinite !important;
+  box-shadow: 0 0 15px rgba(234, 179, 8, 0.6) !important;
+}
