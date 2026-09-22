@@ -99,7 +99,7 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, se
     if (setSelectedSegment && criticalSegment) {
       const segData: SegmentData = {
         id: criticalSegment.id || 0,
-        name: criticalSegment.custom_name || criticalSegment.original_name || `${groupName} Hotspot`,
+        name: (criticalSegment as any).smart_name || criticalSegment.custom_name || criticalSegment.original_name || `${groupName} Hotspot`,
         status: status,
         temp: maxTemp,
         distance: `${criticalSegment.start_m}m - ${criticalSegment.end_m}m`,

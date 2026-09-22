@@ -100,7 +100,7 @@ export default function Dashboard() {
         
         if (currentState !== prevState) {
            globalAlarmState[seg.id] = currentState;
-           const name = seg.custom_name || seg.original_name;
+           const name = (seg as any).smart_name || seg.custom_name || seg.original_name;
            
            if (currentState === 'danger') {
               invoke('write_system_log', { eventType: 'ALARM', message: `CRITICAL DANGER: Segmen ${name} menyentuh suhu ${temp.toFixed(1)}°C (Batas: ${criticalThreshold}°C)` }).catch(console.error);

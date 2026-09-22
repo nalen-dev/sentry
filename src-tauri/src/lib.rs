@@ -60,6 +60,24 @@ async fn get_history_summary(
 
     let mut found_any = false;
 
+    // Pre-calculate smart names to match frontend logic
+    use std::collections::HashMap;
+    let mut grouped_segs: HashMap<String, Vec<&crate::domain::app_models::SegmentMapping>> = HashMap::new();
+    for map in &mappings {
+        if map.main_group != "Unassigned" {
+            let prefix = if let Some(sg) = &map.sub_group { if sg.is_empty() { map.main_group.clone() } else { sg.clone() } } else { map.main_group.clone() };
+            grouped_segs.entry(prefix).or_default().push(map);
+        }
+    }
+    
+    let mut smart_names: HashMap<(i32, i32), String> = HashMap::new();
+    for (prefix, mut segs) in grouped_segs {
+        segs.sort_by_key(|m| m.start_m.unwrap_or(0));
+        for (i, m) in segs.iter().enumerate() {
+            smart_names.insert((m.dts_ch, m.dts_code), format!("{} - {}", prefix, i + 1));
+        }
+    }
+
     for map in mappings {
         if map.main_group == "Unassigned" {
             continue;
@@ -70,7 +88,10 @@ async fn get_history_summary(
             .fetch_all(&mysql_pool)
             .await.unwrap_or_default();
 
-        let name = if let Some(c) = &map.custom_name { if c.is_empty() { map.original_name.clone() } else { c.clone() } } else { map.original_name.clone() };
+        let name = smart_names.get(&(map.dts_ch, map.dts_code))
+            .cloned()
+            .unwrap_or_else(|| if let Some(c) = &map.custom_name { if c.is_empty() { map.original_name.clone() } else { c.clone() } } else { map.original_name.clone() });
+
 
         for r in rows {
             if let Some(t) = r.TempAvg {
