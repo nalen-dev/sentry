@@ -90,3 +90,15 @@ body {
 .custom-tunnel-tooltip.fo-d { color: #3b82f6 !important; border-color: rgba(59, 130, 246, 0.3) !important; }
 .custom-tunnel-tooltip.fo-b { color: #3b82f6 !important; border-color: rgba(59, 130, 246, 0.3) !important; }
 .custom-tunnel-tooltip.fo-a { color: #3b82f6 !important; border-color: rgba(59, 130, 246, 0.3) !important; }
+
+/* Custom Tooltip Override for Group Cards on Satellite Map */
+.leaflet-tooltip.custom-group-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.leaflet-tooltip.custom-group-card::before {
+  display: none !important;
+}

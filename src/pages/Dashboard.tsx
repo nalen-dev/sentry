@@ -341,6 +341,9 @@ export default function Dashboard() {
               isFullscreen={isFullscreen} 
               mapZoom={mapZoom} 
               setMapZoom={setMapZoom} 
+              segments={mappings}
+              warningThreshold={Number(warningThreshold)}
+              criticalThreshold={Number(criticalThreshold)}
             />
           ) : (
             <DiagramVisualization isFullscreen={isFullscreen} segments={mappings} warningThreshold={warningThreshold} criticalThreshold={criticalThreshold} />

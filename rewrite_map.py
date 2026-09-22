@@ -1,5 +1,11 @@
-// @ts-nocheck
-import React, { useEffect, useState } from 'react';
+import re
+
+with open('src/features/map/MapVisualization.tsx', 'r') as f:
+    content = f.read()
+
+# Replace the whole MapVisualization.tsx content entirely to implement the requested logic cleanly.
+
+new_content = """import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, Tooltip, useMap, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -10,13 +16,13 @@ export interface LiveSegment {
   dts_ch: number;
   dts_code: number;
   main_group: string;
-  start_m?: number | null;
-  end_m?: number | null;
+  start_m: number;
+  end_m: number;
   temp_avg: number;
   temp_min: number;
   temp_max: number;
-  temp_min_p?: number | null;
-  temp_max_p?: number | null;
+  temp_min_p: number;
+  temp_max_p: number;
 }
 
 interface MapVisualizationProps {
@@ -225,3 +231,8 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, se
     </div>
   );
 }
+"""
+
+with open('src/features/map/MapVisualization.tsx', 'w') as f:
+    f.write(new_content)
+
