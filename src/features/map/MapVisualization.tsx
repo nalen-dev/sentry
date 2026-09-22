@@ -83,18 +83,23 @@ const getNearestIndex = (point: [number, number], line: [number, number][]): num
 };
 
 const getLineWithBranches = (line: [number, number][], sensors: any[], offsetArgs: [number, number], forceFull: boolean = false) => {
-  const branches = sensors.map(t => [t.coord, line[getNearestIndex(t.coord, line)]]);
   const minIndex = forceFull ? 0 : Math.min(...sensors.map(t => getNearestIndex(t.coord, line)));
   const mainLine = offsetCoords(line.slice(minIndex), offsetArgs[0], offsetArgs[1]);
+  const branches = sensors.map(t => {
+    const nearestIdx = getNearestIndex(t.coord, line);
+    const nearestPoint = line[nearestIdx];
+    const offsetNearestPoint: [number, number] = [nearestPoint[0] + offsetArgs[0], nearestPoint[1] + offsetArgs[1]];
+    return [t.coord, offsetNearestPoint];
+  });
   return [mainLine, ...branches];
 };
 
 // Spread out the anchors and directions so they don't overlap in default view
 const GROUPS_MAPPING = [
-  { id: 'BC4 A', color: GROUP_COLORS['BC4 A'], getCoords: () => [offsetCoords(BC_MAIN_COORDINATES, -0.000010, +0.000010)], anchorIdx: 2, dir: 'left', offset: [-15, 0] },
-  { id: 'TCM16', color: GROUP_COLORS['TCM16'], getCoords: () => getLineWithBranches(BC_MAIN_COORDINATES, TUNNEL_SENSORS.foD, [-0.000030, +0.000030], true), anchorIdx: 6, dir: 'right', offset: [15, 0] },
-  { id: 'BEK34', color: GROUP_COLORS['BEK34'], getCoords: () => getLineWithBranches(BC_MAIN_COORDINATES, TUNNEL_SENSORS.foB, [+0.000015, -0.000015], false), anchorIdx: 3, dir: 'bottom', offset: [0, 15] },
-  { id: 'BEK56', color: GROUP_COLORS['BEK56'], getCoords: () => getLineWithBranches(BC_MAIN_COORDINATES, TUNNEL_SENSORS.foA, [+0.000040, -0.000040], false), anchorIdx: 1, dir: 'top', offset: [0, -15] },
+  { id: 'BC4 A', color: GROUP_COLORS['BC4 A'], getCoords: () => [offsetCoords(BC_MAIN_COORDINATES, -0.000010, +0.000010)], anchorIdx: 2, dir: 'left', offset: [-25, 0] },
+  { id: 'TCM16', color: GROUP_COLORS['TCM16'], getCoords: () => getLineWithBranches(BC_MAIN_COORDINATES, TUNNEL_SENSORS.foD, [-0.000030, +0.000030], true), anchorIdx: 5, dir: 'bottom', offset: [0, 25] },
+  { id: 'BEK34', color: GROUP_COLORS['BEK34'], getCoords: () => getLineWithBranches(BC_MAIN_COORDINATES, TUNNEL_SENSORS.foB, [+0.000015, -0.000015], false), anchorIdx: 2, dir: 'right', offset: [25, 0] },
+  { id: 'BEK56', color: GROUP_COLORS['BEK56'], getCoords: () => getLineWithBranches(BC_MAIN_COORDINATES, TUNNEL_SENSORS.foA, [+0.000040, -0.000040], false), anchorIdx: 3, dir: 'top', offset: [0, -25] },
   { id: 'BC4 B', color: GROUP_COLORS['BC4 B'], getCoords: () => [BC_MAIN_02_COORDINATES.slice(0, 4)], anchorIdx: 1, dir: 'bottom', offset: [0, 15] },
   { id: 'BC5', color: GROUP_COLORS['BC5'], getCoords: () => [BC_MAIN_02_COORDINATES.slice(4, 6)], anchorIdx: 1, dir: 'top', offset: [0, -15] },
   { id: 'BC45-MOTOR', color: GROUP_COLORS['BC45-MOTOR'], getCoords: () => [offsetCoords(BC_MAIN_02_COORDINATES.slice(3, 5), +0.000030, +0.000000)], anchorIdx: 0, dir: 'left', offset: [-15, 0] },
