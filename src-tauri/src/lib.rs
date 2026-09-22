@@ -440,7 +440,7 @@ async fn get_segment_history(
     
     let limit = minutes * 60;
     
-    let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
+    let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY id DESC LIMIT ?")
         .bind(dts_ch).bind(dts_code).bind(limit)
         .fetch_all(&mysql_pool)
         .await.map_err(|e| e.to_string())?;
@@ -496,10 +496,10 @@ async fn get_groups_history(
     let limit = 2000;
     
     for map in mappings {
-        let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= ? AND CreationTime <= ? ORDER BY CreationTime ASC LIMIT ?")
+        let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= ? AND CreationTime <= ? ORDER BY id ASC LIMIT ?")
             .bind(map.dts_ch).bind(map.dts_code).bind(&start_dt).bind(&end_dt).bind(limit)
             .fetch_all(&mysql_pool)
-            .await.unwrap_or_default();
+            .await.map_err(|e| { eprintln!("SQL_ERR: {}", e); e }).unwrap_or_default();
             
         all_fetched.push(FetchedSeg { group: map.main_group.clone(), rows });
     }

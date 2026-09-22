@@ -23,8 +23,14 @@ export default function ChartPage() {
   
   // Filter Inputs (Not yet applied)
   const [filterDate, setFilterDate] = useState<string>(today);
-  const [filterStartTime, setFilterStartTime] = useState<string>('08:00');
-  const [filterEndTime, setFilterEndTime] = useState<string>('16:00');
+  const [filterStartTime, setFilterStartTime] = useState<string>(() => {
+    const d = new Date();
+    d.setHours(d.getHours() - 1);
+    return d.toTimeString().substring(0, 5);
+  });
+  const [filterEndTime, setFilterEndTime] = useState<string>(() => {
+    return new Date().toTimeString().substring(0, 5);
+  });
   
   // History Mode State (Displayed Data)
   const [histData, setHistData] = useState<any[]>([]);
@@ -311,7 +317,7 @@ export default function ChartPage() {
                 <LineChart data={histData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#333' : '#eee'} vertical={false} />
                   <XAxis dataKey="time" stroke={isDarkMode ? '#888' : '#666'} tick={{ fill: isDarkMode ? '#888' : '#666' }} />
-                  <YAxis stroke={isDarkMode ? '#888' : '#666'} tick={{ fill: isDarkMode ? '#888' : '#666' }} domain={['auto', 'auto']} />
+                  <YAxis stroke={isDarkMode ? '#888' : '#666'} tick={{ fill: isDarkMode ? '#888' : '#666' }} domain={[0, 100]} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend wrapperStyle={{ paddingTop: '20px' }} />
                   <ReferenceLine y={criticalThreshold} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'CRITICAL', fill: '#ef4444', fontSize: 12 }} />
