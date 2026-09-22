@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Polyline, Tooltip, useMap, CircleMarker } from
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { WifiOff, TrendingUp, LocateFixed } from 'lucide-react';
-import { BC_MAIN_COORDINATES, BC_MAIN_02_COORDINATES, GROUP_COLORS } from '../../data/constants';
+import { BC_MAIN_COORDINATES, BC_MAIN_02_COORDINATES, GROUP_COLORS, TUNNEL_SENSORS } from '../../data/constants';
 import { SegmentData } from '../../components/SegmentDetailModal';
 
 export interface LiveSegment {
@@ -70,10 +70,10 @@ const offsetCoords = (coords: [number, number][], latOffset: number, lngOffset: 
 
 // Spread out the anchors and directions so they don't overlap in default view
 const GROUPS_MAPPING = [
-  { id: 'BC4 A', color: GROUP_COLORS['BC4 A'], getCoords: () => offsetCoords(BC_MAIN_COORDINATES, -0.000008, +0.000008), anchorIdx: 3, dir: 'left', offset: [-15, 0] },
-  { id: 'TCM16', color: GROUP_COLORS['TCM16'], getCoords: () => offsetCoords(BC_MAIN_COORDINATES, -0.000025, +0.000025), anchorIdx: 7, dir: 'bottom', offset: [0, 15] },
-  { id: 'BEK34', color: GROUP_COLORS['BEK34'], getCoords: () => offsetCoords(BC_MAIN_COORDINATES, +0.000008, -0.000008), anchorIdx: 10, dir: 'right', offset: [15, 0] },
-  { id: 'BEK56', color: GROUP_COLORS['BEK56'], getCoords: () => offsetCoords(BC_MAIN_COORDINATES, +0.000025, -0.000025), anchorIdx: 13, dir: 'top', offset: [0, -15] },
+  { id: 'BC4 A', color: GROUP_COLORS['BC4 A'], getCoords: () => BC_MAIN_COORDINATES, anchorIdx: 5, dir: 'left', offset: [-15, 0] },
+  { id: 'TCM16', color: GROUP_COLORS['TCM16'], getCoords: () => TUNNEL_SENSORS.foD.map(t => t.coord), anchorIdx: 3, dir: 'bottom', offset: [0, 15] },
+  { id: 'BEK34', color: GROUP_COLORS['BEK34'], getCoords: () => TUNNEL_SENSORS.foB.map(t => t.coord), anchorIdx: 0, dir: 'right', offset: [15, 0] },
+  { id: 'BEK56', color: GROUP_COLORS['BEK56'], getCoords: () => TUNNEL_SENSORS.foA.map(t => t.coord), anchorIdx: 1, dir: 'top', offset: [0, -15] },
   { id: 'BC4 B', color: GROUP_COLORS['BC4 B'], getCoords: () => BC_MAIN_02_COORDINATES.slice(0, 4), anchorIdx: 1, dir: 'bottom', offset: [0, 15] },
   { id: 'BC5', color: GROUP_COLORS['BC5'], getCoords: () => BC_MAIN_02_COORDINATES.slice(4, 6), anchorIdx: 1, dir: 'top', offset: [0, -15] },
   { id: 'BC45-MOTOR', color: GROUP_COLORS['BC45-MOTOR'], getCoords: () => offsetCoords(BC_MAIN_02_COORDINATES.slice(3, 5), +0.000030, +0.000000), anchorIdx: 0, dir: 'left', offset: [-15, 0] },
