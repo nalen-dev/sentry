@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Save, Activity, MapPin, AlignLeft, Info, Thermometer, AlertTriangle, Check, Edit2 } from 'lucide-react';
+import { X, Save, Activity, MapPin, AlignLeft, Info, Thermometer, AlertTriangle, Check, Edit2, Layout } from 'lucide-react';
+import DiagramVisualization from '../features/map/DiagramVisualization';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 
 export interface SegmentData {
@@ -41,6 +42,7 @@ export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename
 
   
   const [chartData, setChartData] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'chart' | 'pid'>('chart');
 
   const handleSaveRename = () => {
     if (onRename && editName.trim() !== '') {
@@ -207,30 +209,61 @@ export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename
           {/* RIGHT COLUMN: CHART & LOGS */}
           <div className="w-2/3 flex flex-col p-6 space-y-6">
             
-            {/* Chart */}
-            <div className="h-1/2 flex flex-col bg-bg-base border border-border rounded-xl p-5 shadow-inner">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-xs font-bold text-text-primary uppercase tracking-widest flex items-center"><Activity size={16} className="mr-2 text-scada-primary" /> Temperature vs Time (30m)</span>
+            {/* View Mode Toggle & Content */}
+            <div className="h-[55%] flex flex-col bg-bg-base border border-border rounded-xl p-0 shadow-inner overflow-hidden">
+              <div className="flex border-b border-border bg-bg-surface">
+                <button 
+                  onClick={() => setActiveTab('chart')} 
+                  className={`flex-1 py-3 text-xs font-bold tracking-widest flex items-center justify-center transition-colors ${activeTab === 'chart' ? 'bg-bg-base text-scada-primary border-b-2 border-scada-primary' : 'text-text-secondary hover:text-text-primary'}`}
+                >
+                  <Activity size={16} className="mr-2" /> RIWAYAT SUHU (30m)
+                </button>
+                <button 
+                  onClick={() => setActiveTab('pid')} 
+                  className={`flex-1 py-3 text-xs font-bold tracking-widest flex items-center justify-center transition-colors ${activeTab === 'pid' ? 'bg-bg-base text-scada-primary border-b-2 border-scada-primary' : 'text-text-secondary hover:text-text-primary'}`}
+                >
+                  <Layout size={16} className="mr-2" /> P&ID DIAGRAM
+                </button>
               </div>
               
-              <div className="flex-1 w-full min-h-0">
-                 <ResponsiveContainer width="100%" height="100%">
-                   <RechartsLineChart data={chartData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
-                     <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} />
-                     <XAxis dataKey="time" stroke="#9ca3af" fontSize={12} tickMargin={10} />
-                     <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
-                     <RechartsTooltip 
-                       contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
-                       itemStyle={{ color: '#43b581' }}
+              <div className="flex-1 w-full min-h-0 relative p-4">
+                {activeTab === 'chart' ? (
+                   <ResponsiveContainer width="100%" height="100%">
+                     <RechartsLineChart data={chartData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
+                       <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} />
+                       <XAxis dataKey="time" stroke="#9ca3af" fontSize={12} tickMargin={10} />
+                       <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
+                       <RechartsTooltip 
+                         contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
+                         itemStyle={{ color: '#43b581' }}
+                       />
+                       <Line type="monotone" dataKey="temp" stroke="#43b581" strokeWidth={2} dot={false} activeDot={{ r: 6, fill: '#43b581' }} connectNulls={true} />
+                     </RechartsLineChart>
+                   </ResponsiveContainer>
+                ) : (
+                   <div className="absolute inset-0">
+                     <DiagramVisualization 
+                        isFullscreen={true} 
+                        hideHeader={true}
+                        alwaysShowPin={true}
+                        warningThreshold={45}
+                        criticalThreshold={60}
+                        segments={[{
+                          main_group: segment.mainGroup || '',
+                          sub_group: segment.subGroup || null,
+                          start_m: segment.start_m,
+                          end_m: segment.end_m,
+                          temp_max: segment.temp_max ?? segment.temp,
+                          temp_avg: segment.temp_avg ?? segment.temp,
+                        }]}
                      />
-                     <Line type="monotone" dataKey="temp" stroke="#43b581" strokeWidth={2} dot={false} activeDot={{ r: 6, fill: '#43b581' }} connectNulls={true} />
-                   </RechartsLineChart>
-                 </ResponsiveContainer>
+                   </div>
+                )}
               </div>
             </div>
 
             {/* Related Logs */}
-            <div className="flex-1 flex flex-col bg-bg-base border border-border rounded-xl p-5 shadow-inner min-h-0">
+            <div className="h-[45%] flex flex-col bg-bg-base border border-border rounded-xl p-5 shadow-inner min-h-0">
               <span className="text-xs font-bold text-text-primary uppercase tracking-widest mb-4 flex items-center"><AlignLeft size={16} className="mr-2 text-scada-primary" /> Related Logs</span>
               <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
                 {relatedLogs.map(log => (

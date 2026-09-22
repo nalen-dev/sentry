@@ -1,71 +1,98 @@
 import re
 
 with open('src/components/SegmentDetailModal.tsx', 'r') as f:
-    code = f.read()
+    content = f.read()
 
-# Replace line chart stroke
-code = code.replace('stroke="var(--scada-primary)"', 'stroke="#43b581"')
-code = code.replace("fill: 'var(--scada-primary)'", "fill: '#43b581'")
-code = code.replace("color: 'var(--scada-primary)'", "color: '#43b581'")
+# Add imports
+content = content.replace("import { LineChart as RechartsLineChart", "import DiagramVisualization from '../features/map/DiagramVisualization';\nimport { LineChart as RechartsLineChart")
+content = content.replace("import { X, Save, Activity, MapPin, AlignLeft, Info, Thermometer, AlertTriangle, Check, Edit2 } from 'lucide-react';", "import { X, Save, Activity, MapPin, AlignLeft, Info, Thermometer, AlertTriangle, Check, Edit2, Layout } from 'lucide-react';")
 
-# Fix Notes to use localStorage
-old_notes_state = "const [notes, setNotes] = useState('');"
-new_notes_state = "const [notes, setNotes] = useState(() => localStorage.getItem(`notes_${segment.id}`) || '');"
-code = code.replace(old_notes_state, new_notes_state)
+# Add state
+state_old = "const [chartData, setChartData] = useState<any[]>([]);"
+state_new = "const [chartData, setChartData] = useState<any[]>([]);\n  const [activeTab, setActiveTab] = useState<'chart' | 'pid'>('chart');"
+content = content.replace(state_old, state_new)
 
-old_save_notes = """<button className="w-full bg-scada-primary/20 hover:bg-scada-primary text-scada-primary hover:text-white border border-scada-primary/50 transition-colors py-2 rounded-lg text-sm font-bold flex items-center justify-center">
-                    <Save size={16} className="mr-2" /> SAVE NOTES
-                  </button>"""
+# Replace the Chart section
+chart_old = """            {/* Chart */}
+            <div className="h-1/2 flex flex-col bg-bg-base border border-border rounded-xl p-5 shadow-inner">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-xs font-bold text-text-primary uppercase tracking-widest flex items-center"><Activity size={16} className="mr-2 text-scada-primary" /> Temperature vs Time (30m)</span>
+              </div>
+              
+              <div className="flex-1 w-full min-h-0">
+                 <ResponsiveContainer width="100%" height="100%">
+                   <RechartsLineChart data={chartData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
+                     <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} />
+                     <XAxis dataKey="time" stroke="#9ca3af" fontSize={12} tickMargin={10} />
+                     <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
+                     <RechartsTooltip 
+                       contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
+                       itemStyle={{ color: '#43b581' }}
+                     />
+                     <Line type="monotone" dataKey="temp" stroke="#43b581" strokeWidth={2} dot={false} activeDot={{ r: 6, fill: '#43b581' }} connectNulls={true} />
+                   </RechartsLineChart>
+                 </ResponsiveContainer>
+              </div>
+            </div>"""
 
-new_save_notes = """<button onClick={() => localStorage.setItem(`notes_${segment.id}`, notes)} className="w-full bg-scada-primary/20 hover:bg-scada-primary text-scada-primary hover:text-white border border-scada-primary/50 transition-colors py-2 rounded-lg text-sm font-bold flex items-center justify-center">
-                    <Save size={16} className="mr-2" /> SAVE NOTES
-                  </button>"""
-code = code.replace(old_save_notes, new_save_notes)
+chart_new = """            {/* View Mode Toggle & Content */}
+            <div className="h-[55%] flex flex-col bg-bg-base border border-border rounded-xl p-0 shadow-inner overflow-hidden">
+              <div className="flex border-b border-border bg-bg-surface">
+                <button 
+                  onClick={() => setActiveTab('chart')} 
+                  className={`flex-1 py-3 text-xs font-bold tracking-widest flex items-center justify-center transition-colors ${activeTab === 'chart' ? 'bg-bg-base text-scada-primary border-b-2 border-scada-primary' : 'text-text-secondary hover:text-text-primary'}`}
+                >
+                  <Activity size={16} className="mr-2" /> RIWAYAT SUHU (30m)
+                </button>
+                <button 
+                  onClick={() => setActiveTab('pid')} 
+                  className={`flex-1 py-3 text-xs font-bold tracking-widest flex items-center justify-center transition-colors ${activeTab === 'pid' ? 'bg-bg-base text-scada-primary border-b-2 border-scada-primary' : 'text-text-secondary hover:text-text-primary'}`}
+                >
+                  <Layout size={16} className="mr-2" /> P&ID DIAGRAM
+                </button>
+              </div>
+              
+              <div className="flex-1 w-full min-h-0 relative p-4">
+                {activeTab === 'chart' ? (
+                   <ResponsiveContainer width="100%" height="100%">
+                     <RechartsLineChart data={chartData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
+                       <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" opacity={0.3} />
+                       <XAxis dataKey="time" stroke="#9ca3af" fontSize={12} tickMargin={10} />
+                       <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
+                       <RechartsTooltip 
+                         contentStyle={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border-color)', borderRadius: '8px', fontSize: '12px' }}
+                         itemStyle={{ color: '#43b581' }}
+                       />
+                       <Line type="monotone" dataKey="temp" stroke="#43b581" strokeWidth={2} dot={false} activeDot={{ r: 6, fill: '#43b581' }} connectNulls={true} />
+                     </RechartsLineChart>
+                   </ResponsiveContainer>
+                ) : (
+                   <div className="absolute inset-0">
+                     <DiagramVisualization 
+                        isFullscreen={true} 
+                        hideHeader={true}
+                        alwaysShowPin={true}
+                        warningThreshold={45}
+                        criticalThreshold={60}
+                        segments={[{
+                          main_group: segment.mainGroup || '',
+                          sub_group: segment.subGroup || null,
+                          start_m: segment.start_m,
+                          end_m: segment.end_m,
+                          temp_max: segment.temp_max ?? segment.temp,
+                          temp_avg: segment.temp_avg ?? segment.temp,
+                        }]}
+                     />
+                   </div>
+                )}
+              </div>
+            </div>"""
 
-# Fix Logs to fetch real data
-old_logs_def = """const relatedLogs = [
-    { id: 1, time: '14:22:00', msg: 'System check normal', type: 'info' },
-    { id: 2, time: '12:05:11', msg: 'Slight temp increase detected', type: 'warn' },
-    { id: 3, time: '09:00:00', msg: 'Daily reset initiated', type: 'info' },
-  ];"""
+content = content.replace(chart_old, chart_new)
 
-new_logs_def = """const [relatedLogs, setRelatedLogs] = useState<{id: string, time: string, msg: string, type: string}[]>([]);"""
-code = code.replace(old_logs_def, new_logs_def)
-
-# Add logs fetch inside useEffect
-old_fetch = """const data = await invoke<any[]>('get_segment_history', { dtsCh: segment.dts_ch, dtsCode: segment.dts_code, minutes: 30 });
-          if (isMounted) setChartData(data);"""
-
-new_fetch = """const data = await invoke<any[]>('get_segment_history', { dtsCh: segment.dts_ch, dtsCode: segment.dts_code, minutes: 30 });
-          const alarms = await invoke<any[]>('get_alarms');
-          if (isMounted) {
-            setChartData(data);
-            const filteredAlarms = alarms.filter((a: any) => a.ch === segment.dts_ch && a.code === segment.dts_code);
-            const mappedLogs = filteredAlarms.map((a: any) => {
-              let logType = 'info';
-              let msg = `Event at ${a.distance}m. Temp: ${a.temp}°C`;
-              if (a.alarm_type === 2) { logType = 'error'; msg = `CRITICAL OVERHEAT DETECTED at ${a.distance}m! Temperature reached ${a.temp}°C`; }
-              else if (a.alarm_type === 1) { logType = 'warn'; msg = `Warning threshold exceeded at ${a.distance}m (${a.temp}°C)`; }
-              else if (a.alarm_type === 4) { logType = 'error'; msg = `FIBER BREAK DETECTED at ${a.distance}m!`; }
-              return { id: `L-${a.id}`, time: new Date(a.time).toLocaleTimeString(), msg, type: logType };
-            });
-            setRelatedLogs(mappedLogs);
-          }"""
-code = code.replace(old_fetch, new_fetch)
-
-# Fix group and subgroup display
-old_group = """<span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><AlignLeft size={14} className="mr-2" /> Group</span>
-                <span className="font-mono text-text-primary">{segment.group || 'BC MAIN - 01'}</span>"""
-
-new_group = """<span className="text-xs font-bold text-text-secondary uppercase tracking-widest flex items-center"><AlignLeft size={14} className="mr-2" /> Group / Sub</span>
-                <div className="flex flex-col items-end">
-                   <span className="font-mono text-text-primary font-bold">{(segment as any).mainGroup || 'Unassigned'}</span>
-                   {(segment as any).subGroup && <span className="text-[10px] font-mono text-text-secondary bg-bg-surface px-1.5 py-0.5 rounded border border-border mt-1">{(segment as any).subGroup}</span>}
-                </div>"""
-code = code.replace(old_group, new_group)
-
-# Handle relatedLogs mapping in UI (already handled by the type change, but wait, the type has id: string now)
+# Adjust height of right column inner components to look better
+content = content.replace('className="flex-1 flex flex-col bg-bg-base border border-border rounded-xl p-5 shadow-inner min-h-0"', 'className="h-[45%] flex flex-col bg-bg-base border border-border rounded-xl p-5 shadow-inner min-h-0"')
 
 with open('src/components/SegmentDetailModal.tsx', 'w') as f:
-    f.write(code)
+    f.write(content)
 

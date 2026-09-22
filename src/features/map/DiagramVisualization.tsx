@@ -27,10 +27,12 @@ interface Props {
   segments: LiveSegment[];
   warningThreshold: number;
   criticalThreshold: number;
+  hideHeader?: boolean;
+  alwaysShowPin?: boolean;
 }
 
 
-export default function DiagramVisualization({ isFullscreen, segments, warningThreshold, criticalThreshold }: Props) {
+export default function DiagramVisualization({ isFullscreen, segments, warningThreshold, criticalThreshold, hideHeader, alwaysShowPin }: Props) {
   
   const [calibrations, setCalibrations] = useState<MapCalibration[]>([]);
 
@@ -136,6 +138,7 @@ const renderDynamicSegments = () => {
         const strokeColor = getStatusColor(seg);
         const fillColor = getFillColor(seg);
         const isAlarm = strokeColor.includes('red-500') || strokeColor.includes('yellow-500');
+        const showPin = isAlarm || alwaysShowPin;
 
         // IF this group is one of our special polyline paths, use it!
         const polyPoints = SUBGROUP_PATHS[seg.sub_group || ''];
@@ -153,8 +156,8 @@ const renderDynamicSegments = () => {
               {lines.map((l, lIdx) => (
                 <line key={lIdx} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} strokeWidth="3" className={`${strokeColor} ${isAlarm ? 'animate-pulse' : ''} ${strokeColor.includes('red') ? 'drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : strokeColor.includes('yellow') ? 'drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]' : ''} transition-colors duration-500`} strokeLinecap="round" />
               ))}
-              {isAlarm && (
-                <g transform={`translate(${midX}, ${midY})`} className="animate-bounce animate-pulse">
+              {showPin && (
+                <g transform={`translate(${midX}, ${midY})`} className={isAlarm ? "animate-bounce animate-pulse" : ""}>
                   <path d="M0 -15 C 8 -15 12 -7 12 0 C 12 8 0 15 0 15 C 0 15 -12 8 -12 0 C -12 -7 -8 -15 0 -15" className={fillColor} />
                   <circle cx="0" cy="-5" r="4" fill="white" />
                 </g>
@@ -175,8 +178,8 @@ const renderDynamicSegments = () => {
           return (
             <g key={`${cIdx}-${sIdx}`}>
               <line x1={x1} y1={y1} x2={x2} y2={y2} strokeWidth="3" className={`${strokeColor} ${isAlarm ? 'animate-pulse' : ''} ${strokeColor.includes('red') ? 'drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : strokeColor.includes('yellow') ? 'drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]' : ''} transition-colors duration-500`} strokeLinecap="round" />
-              {isAlarm && (
-                <g transform={`translate(${midX}, ${midY})`} className="animate-bounce animate-pulse">
+              {showPin && (
+                <g transform={`translate(${midX}, ${midY})`} className={isAlarm ? "animate-bounce animate-pulse" : ""}>
                   <path d="M0 -15 C 8 -15 12 -7 12 0 C 12 8 0 15 0 15 C 0 15 -12 8 -12 0 C -12 -7 -8 -15 0 -15" className={fillColor} />
                   <circle cx="0" cy="-5" r="4" fill="white" />
                 </g>
@@ -193,7 +196,7 @@ const renderDynamicSegments = () => {
     <div className="w-full h-full bg-bg-panel flex flex-col relative overflow-hidden custom-scrollbar p-6">
       
       {/* HEADER P&ID */}
-      <div className={`flex justify-between items-center mb-4 shrink-0 bg-bg-surface p-4 rounded-xl border border-border shadow-lg z-10 ${!isFullscreen ? 'ml-[400px]' : ''} transition-all duration-500`}>
+      {!hideHeader && <div className={`flex justify-between items-center mb-4 shrink-0 bg-bg-surface p-4 rounded-xl border border-border shadow-lg z-10 ${!isFullscreen ? 'ml-[400px]' : ''} transition-all duration-500`}>
         <div className="flex items-center">
           <Layout className="text-scada-primary mr-3" size={24} />
           <div>
@@ -201,10 +204,10 @@ const renderDynamicSegments = () => {
             <p className="text-text-secondary text-xs font-mono">DISTRIBUTED TEMPERATURE SENSING</p>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* SVG CANVAS */}
-      <div className={`flex-1 bg-bg-base border border-border rounded-xl overflow-auto custom-scrollbar relative shadow-scada-inset flex items-center justify-center ${!isFullscreen ? 'pl-[400px]' : ''} transition-all duration-500`}>
+      <div className={`flex-1 bg-bg-base border border-border rounded-xl overflow-auto custom-scrollbar relative shadow-scada-inset flex items-center justify-center ${(!isFullscreen && !hideHeader) ? 'pl-[400px]' : ''} transition-all duration-500`}>
                 <svg viewBox="0 0 1450 600" className="w-[1600px] h-[660px] min-w-[1200px] drop-shadow-2xl -translate-y-8">
           
           <defs>
