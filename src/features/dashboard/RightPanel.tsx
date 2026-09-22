@@ -19,7 +19,10 @@ export default function RightPanel({}: RightPanelProps = {}) {
       const fetchHistory = async () => {
         try {
           const [data, mappingsData] = await Promise.all([
-             invoke<any[]>('get_groups_history', { minutes: 30 }),
+             invoke<any[]>('get_groups_history', { 
+               startDt: (new Date(Date.now() - 30 * 60000)).toLocaleString('sv').replace('T', ' ').substring(0, 19), 
+               endDt: (new Date()).toLocaleString('sv').replace('T', ' ').substring(0, 19) 
+             }),
              invoke<any[]>('get_segment_mappings')
           ]);
           if (!isMounted) return;
