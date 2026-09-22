@@ -537,6 +537,8 @@ export default function Dashboard() {
           <SegmentDetailModal 
             segment={selectedSegment} 
             onClose={() => setSelectedSegment(null)} 
+            warningThreshold={warningThreshold}
+            criticalThreshold={criticalThreshold}
             isAdmin={userRole === 'ADMINISTRATOR'}
             onRename={async (id, newName) => {
               try {

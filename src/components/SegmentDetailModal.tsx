@@ -33,9 +33,11 @@ interface SegmentDetailModalProps {
   onClose: () => void;
   isAdmin: boolean;
   onRename?: (id: number, newName: string) => void;
+  warningThreshold?: number;
+  criticalThreshold?: number;
 }
 
-export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename }: SegmentDetailModalProps) {
+export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename, warningThreshold = 45, criticalThreshold = 60 }: SegmentDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(segment.name);
   const [notes, setNotes] = useState(() => localStorage.getItem(`notes_${segment.id}`) || '');
@@ -246,8 +248,8 @@ export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename
                         isFullscreen={true} 
                         hideHeader={true}
                         alwaysShowPin={true}
-                        warningThreshold={45}
-                        criticalThreshold={60}
+                        warningThreshold={warningThreshold}
+                        criticalThreshold={criticalThreshold}
                         segments={[{
                           main_group: segment.mainGroup || '',
                           sub_group: segment.subGroup || null,

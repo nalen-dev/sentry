@@ -109,7 +109,12 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, se
         temp_min: criticalSegment.temp_min,
         temp_avg: criticalSegment.temp_avg,
         dts_ch: criticalSegment.dts_ch,
-        dts_code: criticalSegment.dts_code
+        dts_code: criticalSegment.dts_code,
+        mainGroup: groupName,
+        subGroup: criticalSegment.sub_group || undefined,
+        start_m: criticalSegment.start_m || undefined,
+        end_m: criticalSegment.end_m || undefined,
+        original_name: criticalSegment.original_name
       };
       setSelectedSegment(segData);
     }

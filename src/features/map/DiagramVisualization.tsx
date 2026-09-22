@@ -163,8 +163,8 @@ const renderDynamicSegments = () => {
               ))}
               {showPin && (
                 <g transform={`translate(${midX}, ${midY})`} className={isAlarm ? "animate-bounce animate-pulse" : ""}>
-                  <path d="M0 -15 C 8 -15 12 -7 12 0 C 12 8 0 15 0 15 C 0 15 -12 8 -12 0 C -12 -7 -8 -15 0 -15" className={fillColor} />
-                  <circle cx="0" cy="-5" r="4" fill="white" />
+                  <circle cx="0" cy="0" r="8" className={fillColor} />
+                  <circle cx="0" cy="0" r="4" fill="white" />
                 </g>
               )}
             </g>
@@ -185,8 +185,8 @@ const renderDynamicSegments = () => {
               <line x1={x1} y1={y1} x2={x2} y2={y2} strokeWidth="3" className={`${strokeColor} ${isAlarm ? 'animate-pulse' : ''} ${strokeColor.includes('red') ? 'drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : strokeColor.includes('yellow') ? 'drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]' : ''} transition-colors duration-500`} strokeLinecap="round" />
               {showPin && (
                 <g transform={`translate(${midX}, ${midY})`} className={isAlarm ? "animate-bounce animate-pulse" : ""}>
-                  <path d="M0 -15 C 8 -15 12 -7 12 0 C 12 8 0 15 0 15 C 0 15 -12 8 -12 0 C -12 -7 -8 -15 0 -15" className={fillColor} />
-                  <circle cx="0" cy="-5" r="4" fill="white" />
+                  <circle cx="0" cy="0" r="8" className={fillColor} />
+                  <circle cx="0" cy="0" r="4" fill="white" />
                 </g>
               )}
             </g>
