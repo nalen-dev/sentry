@@ -68,12 +68,25 @@ const offsetCoords = (coords: [number, number][], latOffset: number, lngOffset: 
   return coords.map(p => [p[0] + latOffset, p[1] + lngOffset]);
 };
 
+const getNearestPoint = (point: [number, number], line: [number, number][]): [number, number] => {
+  let nearest = line[0];
+  let minDist = Infinity;
+  for (const p of line) {
+    const dist = Math.pow(p[0] - point[0], 2) + Math.pow(p[1] - point[1], 2);
+    if (dist < minDist) {
+      minDist = dist;
+      nearest = p;
+    }
+  }
+  return nearest;
+};
+
 // Spread out the anchors and directions so they don't overlap in default view
 const GROUPS_MAPPING = [
   { id: 'BC4 A', color: GROUP_COLORS['BC4 A'], getCoords: () => offsetCoords(BC_MAIN_COORDINATES, -0.000008, +0.000008), anchorIdx: 3, dir: 'left', offset: [-15, 0] },
-  { id: 'TCM16', color: GROUP_COLORS['TCM16'], getCoords: () => offsetCoords(BC_MAIN_COORDINATES.slice(0, 11), -0.000025, +0.000025), anchorIdx: 5, dir: 'bottom', offset: [0, 15] },
-  { id: 'BEK34', color: GROUP_COLORS['BEK34'], getCoords: () => offsetCoords(BC_MAIN_COORDINATES.slice(0, 11), +0.000008, -0.000008), anchorIdx: 7, dir: 'right', offset: [15, 0] },
-  { id: 'BEK56', color: GROUP_COLORS['BEK56'], getCoords: () => offsetCoords(BC_MAIN_COORDINATES.slice(0, 11), +0.000025, -0.000025), anchorIdx: 9, dir: 'top', offset: [0, -15] },
+  { id: 'TCM16', color: GROUP_COLORS['TCM16'], getCoords: () => TUNNEL_SENSORS.foD.map(t => [t.coord, getNearestPoint(t.coord, BC_MAIN_COORDINATES)]), anchorIdx: 3, dir: 'bottom', offset: [0, 15] },
+  { id: 'BEK34', color: GROUP_COLORS['BEK34'], getCoords: () => TUNNEL_SENSORS.foB.map(t => [t.coord, getNearestPoint(t.coord, BC_MAIN_COORDINATES)]), anchorIdx: 0, dir: 'right', offset: [15, 0] },
+  { id: 'BEK56', color: GROUP_COLORS['BEK56'], getCoords: () => TUNNEL_SENSORS.foA.map(t => [t.coord, getNearestPoint(t.coord, BC_MAIN_COORDINATES)]), anchorIdx: 1, dir: 'top', offset: [0, -15] },
   { id: 'BC4 B', color: GROUP_COLORS['BC4 B'], getCoords: () => BC_MAIN_02_COORDINATES.slice(0, 4), anchorIdx: 1, dir: 'bottom', offset: [0, 15] },
   { id: 'BC5', color: GROUP_COLORS['BC5'], getCoords: () => BC_MAIN_02_COORDINATES.slice(4, 6), anchorIdx: 1, dir: 'top', offset: [0, -15] },
   { id: 'BC45-MOTOR', color: GROUP_COLORS['BC45-MOTOR'], getCoords: () => offsetCoords(BC_MAIN_02_COORDINATES.slice(3, 5), +0.000030, +0.000000), anchorIdx: 0, dir: 'left', offset: [-15, 0] },
@@ -194,8 +207,15 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, se
 
         {groupStatus.map((g, idx) => {
           const coords = g.getCoords();
-          // Safe fallback for anchorPoint if array is smaller than expected
-          const anchorPoint = coords[g.anchorIdx] || coords[coords.length - 1] || coords[0];
+          // Support MultiPolyline for tunnel branches
+          const isMultiPolyline = coords.length > 0 && Array.isArray(coords[0]) && typeof coords[0][0] !== 'number';
+          let anchorPoint;
+          if (isMultiPolyline) {
+             const line = coords[g.anchorIdx] || coords[0];
+             anchorPoint = line ? line[0] : undefined;
+          } else {
+             anchorPoint = coords[g.anchorIdx] || coords[coords.length - 1] || coords[0];
+          }
 
           return (
             <React.Fragment key={g.id}>
@@ -268,20 +288,7 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, se
                 else { color = '#10b981'; status = 'Normal'; }
              }
              return (
-               <CircleMarker key={`${cable}-${idx}`} center={sensor.coord} radius={5} color={color} fillOpacity={0.8} weight={2}>
-                 <Tooltip direction="top" offset={[0, -5]} opacity={0.9} className="custom-group-card">
-                   <div className="flex flex-col bg-bg-panel rounded shadow-lg overflow-hidden border border-border">
-                     <div className="flex items-center justify-between px-2 py-1" style={{ backgroundColor: `${color}20`, borderBottom: `2px solid ${color}` }}>
-                       <span className="font-bold text-[10px] uppercase text-text-primary">{sensor.name}</span>
-                       <span className="text-[9px] uppercase font-bold ml-2" style={{ color }}>{status}</span>
-                     </div>
-                     <div className="p-1 px-2 flex items-center justify-between text-[10px] bg-bg-surface">
-                       <span className="text-text-secondary mr-2">Temp:</span>
-                       <span className="font-mono font-bold" style={{ color }}>{seg ? seg.temp_max.toFixed(1) : '--'}°C</span>
-                     </div>
-                   </div>
-                 </Tooltip>
-               </CircleMarker>
+               <CircleMarker key={`${cable}-${idx}`} center={sensor.coord} radius={5} color={color} fillOpacity={0.8} weight={2} />
              )
           })
         )}
