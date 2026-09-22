@@ -68,28 +68,36 @@ const offsetCoords = (coords: [number, number][], latOffset: number, lngOffset: 
   return coords.map(p => [p[0] + latOffset, p[1] + lngOffset]);
 };
 
-const getNearestPoint = (point: [number, number], line: [number, number][]): [number, number] => {
-  let nearest = line[0];
+const getNearestIndex = (point: [number, number], line: [number, number][]): number => {
+  let nearestIdx = 0;
   let minDist = Infinity;
-  for (const p of line) {
+  for (let i = 0; i < line.length; i++) {
+    const p = line[i];
     const dist = Math.pow(p[0] - point[0], 2) + Math.pow(p[1] - point[1], 2);
     if (dist < minDist) {
       minDist = dist;
-      nearest = p;
+      nearestIdx = i;
     }
   }
-  return nearest;
+  return nearestIdx;
+};
+
+const getLineWithBranches = (line: [number, number][], sensors: any[], offsetArgs: [number, number], forceFull: boolean = false) => {
+  const branches = sensors.map(t => [t.coord, line[getNearestIndex(t.coord, line)]]);
+  const minIndex = forceFull ? 0 : Math.min(...sensors.map(t => getNearestIndex(t.coord, line)));
+  const mainLine = offsetCoords(line.slice(minIndex), offsetArgs[0], offsetArgs[1]);
+  return [mainLine, ...branches];
 };
 
 // Spread out the anchors and directions so they don't overlap in default view
 const GROUPS_MAPPING = [
-  { id: 'BC4 A', color: GROUP_COLORS['BC4 A'], getCoords: () => offsetCoords(BC_MAIN_COORDINATES, -0.000008, +0.000008), anchorIdx: 3, dir: 'left', offset: [-15, 0] },
-  { id: 'TCM16', color: GROUP_COLORS['TCM16'], getCoords: () => TUNNEL_SENSORS.foD.map(t => [t.coord, getNearestPoint(t.coord, BC_MAIN_COORDINATES)]), anchorIdx: 3, dir: 'bottom', offset: [0, 15] },
-  { id: 'BEK34', color: GROUP_COLORS['BEK34'], getCoords: () => TUNNEL_SENSORS.foB.map(t => [t.coord, getNearestPoint(t.coord, BC_MAIN_COORDINATES)]), anchorIdx: 0, dir: 'right', offset: [15, 0] },
-  { id: 'BEK56', color: GROUP_COLORS['BEK56'], getCoords: () => TUNNEL_SENSORS.foA.map(t => [t.coord, getNearestPoint(t.coord, BC_MAIN_COORDINATES)]), anchorIdx: 1, dir: 'top', offset: [0, -15] },
-  { id: 'BC4 B', color: GROUP_COLORS['BC4 B'], getCoords: () => BC_MAIN_02_COORDINATES.slice(0, 4), anchorIdx: 1, dir: 'bottom', offset: [0, 15] },
-  { id: 'BC5', color: GROUP_COLORS['BC5'], getCoords: () => BC_MAIN_02_COORDINATES.slice(4, 6), anchorIdx: 1, dir: 'top', offset: [0, -15] },
-  { id: 'BC45-MOTOR', color: GROUP_COLORS['BC45-MOTOR'], getCoords: () => offsetCoords(BC_MAIN_02_COORDINATES.slice(3, 5), +0.000030, +0.000000), anchorIdx: 0, dir: 'left', offset: [-15, 0] },
+  { id: 'BC4 A', color: GROUP_COLORS['BC4 A'], getCoords: () => [offsetCoords(BC_MAIN_COORDINATES, -0.000010, +0.000010)], anchorIdx: 2, dir: 'left', offset: [-15, 0] },
+  { id: 'TCM16', color: GROUP_COLORS['TCM16'], getCoords: () => getLineWithBranches(BC_MAIN_COORDINATES, TUNNEL_SENSORS.foD, [-0.000030, +0.000030], true), anchorIdx: 6, dir: 'right', offset: [15, 0] },
+  { id: 'BEK34', color: GROUP_COLORS['BEK34'], getCoords: () => getLineWithBranches(BC_MAIN_COORDINATES, TUNNEL_SENSORS.foB, [+0.000015, -0.000015], false), anchorIdx: 3, dir: 'bottom', offset: [0, 15] },
+  { id: 'BEK56', color: GROUP_COLORS['BEK56'], getCoords: () => getLineWithBranches(BC_MAIN_COORDINATES, TUNNEL_SENSORS.foA, [+0.000040, -0.000040], false), anchorIdx: 1, dir: 'top', offset: [0, -15] },
+  { id: 'BC4 B', color: GROUP_COLORS['BC4 B'], getCoords: () => [BC_MAIN_02_COORDINATES.slice(0, 4)], anchorIdx: 1, dir: 'bottom', offset: [0, 15] },
+  { id: 'BC5', color: GROUP_COLORS['BC5'], getCoords: () => [BC_MAIN_02_COORDINATES.slice(4, 6)], anchorIdx: 1, dir: 'top', offset: [0, -15] },
+  { id: 'BC45-MOTOR', color: GROUP_COLORS['BC45-MOTOR'], getCoords: () => [offsetCoords(BC_MAIN_02_COORDINATES.slice(3, 5), +0.000030, +0.000000)], anchorIdx: 0, dir: 'left', offset: [-15, 0] },
 ];
 
 export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, segments = [], warningThreshold = 45, criticalThreshold = 60, setSelectedSegment }: MapVisualizationProps) {
@@ -207,15 +215,10 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, se
 
         {groupStatus.map((g, idx) => {
           const coords = g.getCoords();
-          // Support MultiPolyline for tunnel branches
-          const isMultiPolyline = coords.length > 0 && Array.isArray(coords[0]) && typeof coords[0][0] !== 'number';
-          let anchorPoint;
-          if (isMultiPolyline) {
-             const line = coords[g.anchorIdx] || coords[0];
-             anchorPoint = line ? line[0] : undefined;
-          } else {
-             anchorPoint = coords[g.anchorIdx] || coords[coords.length - 1] || coords[0];
-          }
+          // Detect if coords is MultiPolyline (array of lines)
+          const isMultiPolyline = coords.length > 0 && Array.isArray(coords[0]) && Array.isArray(coords[0][0]);
+          const mainLine = isMultiPolyline ? coords[0] : coords;
+          const anchorPoint = mainLine[g.anchorIdx] || mainLine[mainLine.length - 1] || mainLine[0];
 
           return (
             <React.Fragment key={g.id}>
@@ -276,23 +279,7 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, se
           );
         })}
         
-        {/* Render discrete tunnel sensors with tooltips */
-         Object.entries(TUNNEL_SENSORS).map(([cable, sensors]) => 
-          sensors.map((sensor, idx) => {
-             const seg = segments.find(s => s.custom_name === sensor.name || s.original_name === sensor.name || (s as any).smart_name === sensor.name);
-             let color = '#3b82f6';
-             let status = 'Normal';
-             if (seg) {
-                if (seg.temp_max >= criticalThreshold) { color = '#ef4444'; status = 'Danger'; }
-                else if (seg.temp_max >= warningThreshold) { color = '#eab308'; status = 'Warning'; }
-                else { color = '#10b981'; status = 'Normal'; }
-             }
-             return (
-               <CircleMarker key={`${cable}-${idx}`} center={sensor.coord} radius={5} color={color} fillOpacity={0.8} weight={2} />
-             )
-          })
-        )}
-      </MapContainer>
+        </MapContainer>
     </div>
   );
 }
