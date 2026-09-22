@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { invoke } from '@tauri-apps/api/core';
 import { Lock, User, ShieldCheck, AlertCircle } from 'lucide-react';
 
 export default function Login() {
@@ -13,16 +14,22 @@ export default function Login() {
     document.documentElement.classList.add('dark');
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (username === 'admin') {
       localStorage.setItem('userRole', 'ADMINISTRATOR');
       localStorage.setItem('userId', 'AD-001');
+      try {
+        await invoke('write_system_log', { eventType: 'AUTH', message: 'User AD-001 (ADMINISTRATOR) berhasil login.' });
+      } catch (err) { console.error(err); }
       navigate('/');
     } else if (username === 'operator') {
       localStorage.setItem('userRole', 'OPERATOR');
       localStorage.setItem('userId', 'OP-7729');
+      try {
+        await invoke('write_system_log', { eventType: 'AUTH', message: 'User OP-7729 (OPERATOR) berhasil login.' });
+      } catch (err) { console.error(err); }
       navigate('/');
     } else {
       setError(true);

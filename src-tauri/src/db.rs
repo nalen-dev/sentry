@@ -68,6 +68,18 @@ pub async fn init_db(app_dir: &PathBuf) -> Result<SqlitePool, sqlx::Error> {
     .execute(&pool)
     .await?;
 
+    
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS system_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            event_type TEXT NOT NULL,
+            message TEXT NOT NULL
+        );"
+    )
+    .execute(&pool)
+    .await?;
+
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS segment_mappings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

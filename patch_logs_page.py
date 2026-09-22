@@ -1,7 +1,13 @@
-import { useState, useEffect } from 'react';
+import re
+
+with open('src/pages/LogsPage.tsx', 'r') as f:
+    content = f.read()
+
+# I will completely replace LogsPage.tsx to cleanly implement the tabs and fetch logic
+new_logs = """import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { exportElementToPDF } from '../utils/exportPdf';
-import { History, Layout, Download, AlertTriangle, Info, AlertCircle, Search, FileText, Server, Settings, Power, LogIn } from 'lucide-react';
+import { History, Download, AlertTriangle, Info, AlertCircle, Search, FileText, Server, Settings, Power, LogIn } from 'lucide-react';
 import TopNavbar from '../components/layout/TopNavbar';
 
 interface HardwareLog {
@@ -310,3 +316,8 @@ export default function LogsPage() {
     </div>
   );
 }
+"""
+
+with open('src/pages/LogsPage.tsx', 'w') as f:
+    f.write(new_logs)
+

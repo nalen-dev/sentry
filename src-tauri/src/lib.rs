@@ -33,6 +33,42 @@ async fn get_all_settings(state: tauri::State<'_, SqlitePool>) -> Result<HashMap
     Ok(map)
 }
 
+
+#[derive(serde::Serialize)]
+pub struct SystemLog {
+    pub id: i32,
+    pub timestamp: String,
+    pub event_type: String,
+    pub message: String,
+}
+
+#[tauri::command]
+async fn write_system_log(event_type: String, message: String, state: tauri::State<'_, SqlitePool>) -> Result<(), String> {
+    sqlx::query("INSERT INTO system_logs (event_type, message) VALUES (?, ?)")
+        .bind(&event_type)
+        .bind(&message)
+        .execute(&*state)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_system_logs(state: tauri::State<'_, SqlitePool>) -> Result<Vec<SystemLog>, String> {
+    let rows: Vec<(i32, String, String, String)> = sqlx::query_as(
+        "SELECT id, datetime(timestamp, 'localtime'), event_type, message FROM system_logs ORDER BY id DESC LIMIT 500"
+    )
+    .fetch_all(&*state)
+    .await
+    .map_err(|e| e.to_string())?;
+    
+    let logs = rows.into_iter().map(|(id, timestamp, event_type, message)| SystemLog {
+        id, timestamp, event_type, message
+    }).collect();
+    
+    Ok(logs)
+}
+
 #[tauri::command]
 async fn save_setting(key: String, value: String, state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<(), String> {
     sqlx::query("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
@@ -603,11 +639,26 @@ pub fn run() {
                 let pool = db::init_db(&app_dir).await.expect("Failed to initialize database");
                 
                 // Store connection pool in Tauri state
+                let p = pool.clone();
                 handle.manage(pool);
                 handle.manage(MysqlState(Mutex::new(None)));
+                
+                // Write startup log
+                let _ = sqlx::query("INSERT INTO system_logs (event_type, message) VALUES ('SYSTEM', 'Sistem Sentry SCADA dinyalakan')")
+                    .execute(&p).await;
             });
             
             Ok(())
+        })
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { .. } => {
+                let state: tauri::State<'_, SqlitePool> = window.state();
+                let _ = tauri::async_runtime::block_on(async {
+                    let _ = sqlx::query("INSERT INTO system_logs (event_type, message) VALUES ('SYSTEM', 'Sistem Sentry SCADA dimatikan')")
+                        .execute(&*state).await;
+                });
+            }
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             get_all_settings, 
@@ -623,7 +674,11 @@ pub fn run() {
             update_segment_mapping,
             test_db_connection,
             get_map_calibration,
-            save_map_calibration
+            write_system_log,
+            get_system_logs,
+            save_map_calibration,
+            write_system_log,
+            get_system_logs
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
