@@ -440,7 +440,7 @@ async fn get_segment_history(
     
     let limit = minutes * 60;
     
-    let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY id DESC LIMIT ?")
+    let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
         .bind(dts_ch).bind(dts_code).bind(limit)
         .fetch_all(&mysql_pool)
         .await.map_err(|e| e.to_string())?;
@@ -478,6 +478,9 @@ async fn get_groups_history(
     end_dt: String,
     state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
 ) -> Result<Vec<GroupHistoryPoint>, String> {
+    use chrono::{Local, TimeZone, NaiveDateTime};
+    let parsed_start = Local.from_local_datetime(&NaiveDateTime::parse_from_str(&start_dt, "%Y-%m-%d %H:%M:%S").map_err(|e| e.to_string())?).unwrap();
+    let parsed_end = Local.from_local_datetime(&NaiveDateTime::parse_from_str(&end_dt, "%Y-%m-%d %H:%M:%S").map_err(|e| e.to_string())?).unwrap();
     let mappings: Vec<crate::domain::app_models::SegmentMapping> = sqlx::query_as("SELECT * FROM segment_mappings WHERE main_group != 'Unassigned'")
         .fetch_all(&*state).await.map_err(|e| e.to_string())?;
         
@@ -496,8 +499,8 @@ async fn get_groups_history(
     let limit = 2000;
     
     for map in mappings {
-        let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= ? AND CreationTime <= ? ORDER BY id ASC LIMIT ?")
-            .bind(map.dts_ch).bind(map.dts_code).bind(&start_dt).bind(&end_dt).bind(limit)
+        let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= ? AND CreationTime <= ? ORDER BY CreationTime ASC LIMIT ?")
+            .bind(map.dts_ch).bind(map.dts_code).bind(parsed_start).bind(parsed_end).bind(limit)
             .fetch_all(&mysql_pool)
             .await.map_err(|e| { eprintln!("SQL_ERR: {}", e); e }).unwrap_or_default();
             

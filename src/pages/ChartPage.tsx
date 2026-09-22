@@ -317,7 +317,7 @@ export default function ChartPage() {
                 <LineChart data={histData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#333' : '#eee'} vertical={false} />
                   <XAxis dataKey="time" stroke={isDarkMode ? '#888' : '#666'} tick={{ fill: isDarkMode ? '#888' : '#666' }} />
-                  <YAxis stroke={isDarkMode ? '#888' : '#666'} tick={{ fill: isDarkMode ? '#888' : '#666' }} domain={[0, 100]} />
+                  <YAxis stroke={isDarkMode ? '#888' : '#666'} tick={{ fill: isDarkMode ? '#888' : '#666' }} domain={['auto', 'auto']} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend wrapperStyle={{ paddingTop: '20px' }} />
                   <ReferenceLine y={criticalThreshold} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'CRITICAL', fill: '#ef4444', fontSize: 12 }} />
@@ -342,7 +342,7 @@ export default function ChartPage() {
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#333' : '#eee'} vertical={false} />
                       <XAxis dataKey="distance" stroke={isDarkMode ? '#888' : '#666'} tick={{ fill: isDarkMode ? '#888' : '#666' }} />
-                      <YAxis stroke={isDarkMode ? '#888' : '#666'} tick={{ fill: isDarkMode ? '#888' : '#666' }} domain={[20, (dataMax: number) => Math.max(dataMax + 10, 80)]} />
+                      <YAxis stroke={isDarkMode ? '#888' : '#666'} tick={{ fill: isDarkMode ? '#888' : '#666' }} domain={[0, 100]} />
                       <Tooltip content={<CustomTooltip />} />
                       <ReferenceLine y={criticalThreshold} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'CRITICAL', fill: '#ef4444', fontSize: 12 }} />
                       <ReferenceLine y={warningThreshold} stroke="#eab308" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'WARNING', fill: '#eab308', fontSize: 12 }} />
