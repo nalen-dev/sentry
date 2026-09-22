@@ -1,4 +1,10 @@
-import { useState, useEffect } from 'react';
+import re
+
+with open('src/pages/LogsPage.tsx', 'r') as f:
+    content = f.read()
+
+# I will rewrite LogsPage completely to combine Hardware and System logs into a single array
+new_logs_page = """import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { exportElementToPDF } from '../utils/exportPdf';
 import { History, Download, AlertTriangle, Info, AlertCircle, Search, FileText, Settings, Power, LogIn } from 'lucide-react';
@@ -271,3 +277,8 @@ export default function LogsPage() {
     </div>
   );
 }
+"""
+
+with open('src/pages/LogsPage.tsx', 'w') as f:
+    f.write(new_logs_page)
+
