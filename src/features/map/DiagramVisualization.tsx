@@ -122,12 +122,17 @@ const renderDynamicSegments = () => {
       const groupSegments = segments.filter(s => s.main_group === calib.main_group || (s.sub_group && s.sub_group === calib.main_group));
       
       return groupSegments.map((seg, sIdx) => {
-        const startM = seg.start_m || 0;
-        const endM = seg.end_m || 0;
-        if (startM === endM) return null;
-
+        let startM = seg.start_m || 0;
+        let endM = seg.end_m || 0;
+        
         const totalM = calib.end_m - calib.start_m;
         if (totalM === 0) return null;
+        
+        // Fallback: If segment has no distance mapping, assume it covers the whole group
+        if (startM === endM) {
+            startM = calib.start_m;
+            endM = calib.end_m;
+        }
 
         let r1 = (startM - calib.start_m) / totalM;
         let r2 = (endM - calib.start_m) / totalM;
@@ -192,7 +197,35 @@ const renderDynamicSegments = () => {
   };
 
 
-  return (
+  
+  let customViewBox = "0 0 1450 600";
+  let customClass = "w-[1600px] h-[660px] min-w-[1200px] drop-shadow-2xl -translate-y-8";
+  
+  if (alwaysShowPin && segments.length === 1 && calibrations.length > 0) {
+     const seg = segments[0];
+     // Find calibration
+     const calib = calibrations.find(c => c.main_group === seg.main_group || c.main_group === seg.sub_group);
+     if (calib) {
+         let midX = (calib.start_svg_x + calib.end_svg_x) / 2;
+         let midY = (calib.start_svg_y + calib.end_svg_y) / 2;
+         
+         const polyPoints = SUBGROUP_PATHS[seg.sub_group || ''];
+         if (polyPoints) {
+            midX = (polyPoints[0][0] + polyPoints[polyPoints.length - 1][0]) / 2;
+            midY = (polyPoints[0][1] + polyPoints[polyPoints.length - 1][1]) / 2;
+         }
+         
+         // Zoom into 600x400 around midX, midY
+         const vw = 500;
+         const vh = 300;
+         const vx = Math.max(0, midX - vw / 2);
+         const vy = Math.max(0, midY - vh / 2);
+         customViewBox = `${vx} ${vy} ${vw} ${vh}`;
+         customClass = "w-full h-full drop-shadow-2xl"; // make it fill modal without scroll
+     }
+  }
+
+return (
     <div className="w-full h-full bg-bg-panel flex flex-col relative overflow-hidden custom-scrollbar p-6">
       
       {/* HEADER P&ID */}
@@ -208,7 +241,7 @@ const renderDynamicSegments = () => {
 
       {/* SVG CANVAS */}
       <div className={`flex-1 bg-bg-base border border-border rounded-xl overflow-auto custom-scrollbar relative shadow-scada-inset flex items-center justify-center ${(!isFullscreen && !hideHeader) ? 'pl-[400px]' : ''} transition-all duration-500`}>
-                <svg viewBox="0 0 1450 600" className="w-[1600px] h-[660px] min-w-[1200px] drop-shadow-2xl -translate-y-8">
+                <svg viewBox={customViewBox} className={customClass}>
           
           <defs>
             <pattern id="dotGrid" width="30" height="30" patternUnits="userSpaceOnUse">

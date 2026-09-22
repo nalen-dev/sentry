@@ -3,63 +3,57 @@ import re
 with open('src/features/map/DiagramVisualization.tsx', 'r') as f:
     content = f.read()
 
-# Add props
-props_old = """interface Props {
-  isFullscreen: boolean;
-  segments: LiveSegment[];
-  warningThreshold: number;
-  criticalThreshold: number;
-}"""
-props_new = """interface Props {
-  isFullscreen: boolean;
-  segments: LiveSegment[];
-  warningThreshold: number;
-  criticalThreshold: number;
-  hideHeader?: boolean;
-  alwaysShowPin?: boolean;
-}"""
-content = content.replace(props_old, props_new)
+# Add focus state
+state_old = "const [calibrations, setCalibrations] = useState<MapCalibration[]>([]);"
+state_new = "const [calibrations, setCalibrations] = useState<MapCalibration[]>([]);\n  const [focusPoint, setFocusPoint] = useState<{x: number, y: number} | null>(null);"
+content = content.replace(state_old, state_new)
 
-# Add destructuring for new props
-sig_old = "export default function DiagramVisualization({ isFullscreen, segments, warningThreshold, criticalThreshold }: Props) {"
-sig_new = "export default function DiagramVisualization({ isFullscreen, segments, warningThreshold, criticalThreshold, hideHeader, alwaysShowPin }: Props) {"
-content = content.replace(sig_old, sig_new)
+# Modify renderDynamicSegments to capture focus point
+# Wait, renderDynamicSegments is called during render. We shouldn't setState during render.
+# Better to use a useMemo to compute focusPoint based on segments and calibrations, OR just let the SVG viewBox be calculated inline.
 
-# Modify pin rendering in the first branch (subgroup paths)
-is_alarm_cond = "const isAlarm = strokeColor.includes('red-500') || strokeColor.includes('yellow-500');"
-content = content.replace(is_alarm_cond, "const isAlarm = strokeColor.includes('red-500') || strokeColor.includes('yellow-500');\n        const showPin = isAlarm || alwaysShowPin;")
+render_func_start = "const renderDynamicSegments = () => {"
+render_func_end = "return calibrations.map((calib, cIdx) => {"
 
-# Update the conditional rendering of the pin (in both branches)
-# In branch 1:
-content = content.replace("{isAlarm && (\n                <g transform={`translate(${midX}, ${midY})`} className=\"animate-bounce animate-pulse\">", "{showPin && (\n                <g transform={`translate(${midX}, ${midY})`} className={isAlarm ? \"animate-bounce animate-pulse\" : \"\"}>")
+# We can just change the viewBox inline.
+viewbox_old = '<svg viewBox="0 0 1450 600" className="w-[1600px] h-[660px] min-w-[1200px] drop-shadow-2xl -translate-y-8">'
 
-# In branch 2:
-content = content.replace("{isAlarm && (\n                <g transform={`translate(${midX}, ${midY})`} className=\"animate-bounce animate-pulse\">", "{showPin && (\n                <g transform={`translate(${midX}, ${midY})`} className={isAlarm ? \"animate-bounce animate-pulse\" : \"\"}>")
+viewbox_logic = """
+  let customViewBox = "0 0 1450 600";
+  let customClass = "w-[1600px] h-[660px] min-w-[1200px] drop-shadow-2xl -translate-y-8";
+  
+  if (alwaysShowPin && segments.length === 1 && calibrations.length > 0) {
+     const seg = segments[0];
+     // Find calibration
+     const calib = calibrations.find(c => c.main_group === seg.main_group || c.main_group === seg.sub_group);
+     if (calib) {
+         let midX = (calib.start_svg_x + calib.end_svg_x) / 2;
+         let midY = (calib.start_svg_y + calib.end_svg_y) / 2;
+         
+         const polyPoints = SUBGROUP_PATHS[seg.sub_group || ''];
+         if (polyPoints) {
+            midX = (polyPoints[0][0] + polyPoints[polyPoints.length - 1][0]) / 2;
+            midY = (polyPoints[0][1] + polyPoints[polyPoints.length - 1][1]) / 2;
+         }
+         
+         // Zoom into 600x400 around midX, midY
+         const vw = 500;
+         const vh = 300;
+         const vx = Math.max(0, midX - vw / 2);
+         const vy = Math.max(0, midY - vh / 2);
+         customViewBox = `${vx} ${vy} ${vw} ${vh}`;
+         customClass = "w-full h-full drop-shadow-2xl"; // make it fill modal without scroll
+     }
+  }
 
+"""
 
-# Hide header if hideHeader is true
-header_old = "{/* HEADER P&ID */}\n      <div className={`flex justify-between items-center mb-4 shrink-0 bg-bg-surface p-4 rounded-xl border border-border shadow-lg z-10 ${!isFullscreen ? 'ml-[400px]' : ''} transition-all duration-500`}>"
-header_new = "{/* HEADER P&ID */}\n      {!hideHeader && <div className={`flex justify-between items-center mb-4 shrink-0 bg-bg-surface p-4 rounded-xl border border-border shadow-lg z-10 ${!isFullscreen ? 'ml-[400px]' : ''} transition-all duration-500`}>"
-content = content.replace(header_old, header_new)
+content = content.replace(
+    'return (\n    <div className="w-full',
+    viewbox_logic + 'return (\n    <div className="w-full'
+)
 
-# Close the !hideHeader condition
-close_header_old = """          </div>
-        </div>
-      </div>
-
-      {/* SVG CANVAS */}"""
-close_header_new = """          </div>
-        </div>
-      </div>}
-
-      {/* SVG CANVAS */}"""
-content = content.replace(close_header_old, close_header_new)
-
-# When hideHeader is true, we probably shouldn't apply the ml-[400px] padding
-canvas_old = "<div className={`flex-1 bg-bg-base border border-border rounded-xl overflow-auto custom-scrollbar relative shadow-scada-inset flex items-center justify-center ${!isFullscreen ? 'pl-[400px]' : ''} transition-all duration-500`}>"
-canvas_new = "<div className={`flex-1 bg-bg-base border border-border rounded-xl overflow-auto custom-scrollbar relative shadow-scada-inset flex items-center justify-center ${(!isFullscreen && !hideHeader) ? 'pl-[400px]' : ''} transition-all duration-500`}>"
-content = content.replace(canvas_old, canvas_new)
-
+content = content.replace(viewbox_old, '<svg viewBox={customViewBox} className={customClass}>')
 
 with open('src/features/map/DiagramVisualization.tsx', 'w') as f:
     f.write(content)
