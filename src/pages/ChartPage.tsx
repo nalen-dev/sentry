@@ -4,8 +4,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { exportElementToPDF } from '../utils/exportPdf';
 import TopNavbar from '../components/layout/TopNavbar';
 import { invoke } from '@tauri-apps/api/core';
+import { GROUP_COLORS, CHART_COLORS_FALLBACK } from '../data/constants';
 
-const COLORS = ['#06b6d4', '#eab308', '#ef4444', '#10b981', '#a855f7', '#f97316', '#ec4899', '#3b82f6'];
 
 type ChartMode = 'history' | 'spatial';
 
@@ -326,7 +326,7 @@ export default function ChartPage() {
 
                 
                 {histGroups.map((name, i) => (
-                  <Line key={name} type="monotone" dataKey={name} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} activeDot={{ r: 6, strokeWidth: 0 }} connectNulls={true} />
+                  <Line key={name} type="monotone" dataKey={name} stroke={GROUP_COLORS[name] || CHART_COLORS_FALLBACK[i % CHART_COLORS_FALLBACK.length]} strokeWidth={2} dot={false} activeDot={{ r: 6, strokeWidth: 0 }} connectNulls={true} />
                 ))}
               </LineChart>
             ) : (

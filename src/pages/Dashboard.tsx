@@ -344,6 +344,7 @@ export default function Dashboard() {
               segments={mappings}
               warningThreshold={Number(warningThreshold)}
               criticalThreshold={Number(criticalThreshold)}
+              setSelectedSegment={setSelectedSegment}
             />
           ) : (
             <DiagramVisualization isFullscreen={isFullscreen} segments={mappings} warningThreshold={warningThreshold} criticalThreshold={criticalThreshold} />

@@ -1,4 +1,9 @@
-// @ts-nocheck
+import re
+
+with open('src/features/map/MapVisualization.tsx', 'r') as f:
+    content = f.read()
+
+new_content = """// @ts-nocheck
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, Tooltip, useMap, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
@@ -254,3 +259,8 @@ export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, se
     </div>
   );
 }
+"""
+
+with open('src/features/map/MapVisualization.tsx', 'w') as f:
+    f.write(new_content)
+
