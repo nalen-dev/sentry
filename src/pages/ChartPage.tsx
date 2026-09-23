@@ -19,8 +19,8 @@ export default function ChartPage() {
   const [chartMode, setChartMode] = useState<ChartMode>('history');
   const [histSummary, setHistSummary] = useState<any>(null);
   
-  // Format today's date as YYYY-MM-DD
-  const today = new Date().toISOString().split('T')[0];
+  // Format today's date as YYYY-MM-DD (Local Timezone safe)
+  const today = new Date().toLocaleDateString('sv');
   
   // Filter Inputs (Not yet applied)
   const [filterDate, setFilterDate] = useState<string>(today);
