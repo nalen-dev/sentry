@@ -1,15 +1,14 @@
-pub mod domain;
 mod db;
+pub mod domain;
 
+use serde::{Deserialize, Serialize};
+use sqlx::mysql::{MySqlConnectOptions, MySqlPool, MySqlPoolOptions};
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use tauri::Manager;
-use serde::{Serialize, Deserialize};
 use tokio::sync::Mutex;
-use sqlx::mysql::{MySqlPool, MySqlPoolOptions, MySqlConnectOptions};
 
 struct MysqlState(Mutex<Option<MySqlPool>>);
-
 
 #[derive(Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
@@ -17,7 +16,6 @@ pub struct User {
     role: String,
     status: String,
 }
-
 
 #[derive(serde::Serialize)]
 pub struct HistorySummary {
@@ -35,18 +33,34 @@ pub struct HistorySummary {
 async fn get_history_summary(
     start_dt: String,
     end_dt: String,
-    state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
+    state: tauri::State<'_, SqlitePool>,
+    mysql_state: tauri::State<'_, MysqlState>,
 ) -> Result<Option<HistorySummary>, String> {
-    use chrono::{Local, TimeZone, NaiveDateTime};
-    let parsed_start = Local.from_local_datetime(&NaiveDateTime::parse_from_str(&start_dt, "%Y-%m-%d %H:%M:%S").map_err(|e| e.to_string())?).unwrap();
-    let parsed_end = Local.from_local_datetime(&NaiveDateTime::parse_from_str(&end_dt, "%Y-%m-%d %H:%M:%S").map_err(|e| e.to_string())?).unwrap();
+    use chrono::{Local, NaiveDateTime, TimeZone};
+    let parsed_start = Local
+        .from_local_datetime(
+            &NaiveDateTime::parse_from_str(&start_dt, "%Y-%m-%d %H:%M:%S")
+                .map_err(|e| e.to_string())?,
+        )
+        .unwrap();
+    let parsed_end = Local
+        .from_local_datetime(
+            &NaiveDateTime::parse_from_str(&end_dt, "%Y-%m-%d %H:%M:%S")
+                .map_err(|e| e.to_string())?,
+        )
+        .unwrap();
 
     let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
-    let mappings = get_segment_mappings(state.clone()).await.unwrap_or_default();
-    
+    let mappings = get_segment_mappings(state.clone())
+        .await
+        .unwrap_or_default();
+
     #[derive(sqlx::FromRow, Clone)]
     #[allow(non_snake_case)]
-    struct HistRow { CreationTime: Option<chrono::DateTime<chrono::Local>>, TempAvg: Option<i32> }
+    struct HistRow {
+        CreationTime: Option<chrono::DateTime<chrono::Local>>,
+        TempAvg: Option<i32>,
+    }
 
     let mut overall_max_temp: i32 = -999999;
     let mut overall_max_time: String = String::new();
@@ -62,14 +76,23 @@ async fn get_history_summary(
 
     // Pre-calculate smart names to match frontend logic
     use std::collections::HashMap;
-    let mut grouped_segs: HashMap<String, Vec<&crate::domain::app_models::SegmentMapping>> = HashMap::new();
+    let mut grouped_segs: HashMap<String, Vec<&crate::domain::app_models::SegmentMapping>> =
+        HashMap::new();
     for map in &mappings {
         if map.main_group != "Unassigned" {
-            let prefix = if let Some(sg) = &map.sub_group { if sg.is_empty() { map.main_group.clone() } else { sg.clone() } } else { map.main_group.clone() };
+            let prefix = if let Some(sg) = &map.sub_group {
+                if sg.is_empty() {
+                    map.main_group.clone()
+                } else {
+                    sg.clone()
+                }
+            } else {
+                map.main_group.clone()
+            };
             grouped_segs.entry(prefix).or_default().push(map);
         }
     }
-    
+
     let mut smart_names: HashMap<(i32, i32), String> = HashMap::new();
     for (prefix, mut segs) in grouped_segs {
         segs.sort_by_key(|m| m.start_m.unwrap_or(0));
@@ -88,10 +111,20 @@ async fn get_history_summary(
             .fetch_all(&mysql_pool)
             .await.unwrap_or_default();
 
-        let name = smart_names.get(&(map.dts_ch, map.dts_code))
+        let name = smart_names
+            .get(&(map.dts_ch, map.dts_code))
             .cloned()
-            .unwrap_or_else(|| if let Some(c) = &map.custom_name { if c.is_empty() { map.original_name.clone() } else { c.clone() } } else { map.original_name.clone() });
-
+            .unwrap_or_else(|| {
+                if let Some(c) = &map.custom_name {
+                    if c.is_empty() {
+                        map.original_name.clone()
+                    } else {
+                        c.clone()
+                    }
+                } else {
+                    map.original_name.clone()
+                }
+            });
 
         for r in rows {
             if let Some(t) = r.TempAvg {
@@ -99,13 +132,19 @@ async fn get_history_summary(
                     found_any = true;
                     if t > overall_max_temp {
                         overall_max_temp = t;
-                        overall_max_time = r.CreationTime.map(|c| c.format("%H:%M:%S").to_string()).unwrap_or_default();
+                        overall_max_time = r
+                            .CreationTime
+                            .map(|c| c.format("%H:%M:%S").to_string())
+                            .unwrap_or_default();
                         overall_max_group = map.main_group.clone();
                         overall_max_segment = name.clone();
                     }
                     if t < overall_min_temp {
                         overall_min_temp = t;
-                        overall_min_time = r.CreationTime.map(|c| c.format("%H:%M:%S").to_string()).unwrap_or_default();
+                        overall_min_time = r
+                            .CreationTime
+                            .map(|c| c.format("%H:%M:%S").to_string())
+                            .unwrap_or_default();
                         overall_min_group = map.main_group.clone();
                         overall_min_segment = name.clone();
                     }
@@ -131,20 +170,21 @@ async fn get_history_summary(
 }
 
 #[tauri::command]
-async fn get_all_settings(state: tauri::State<'_, SqlitePool>) -> Result<HashMap<String, String>, String> {
+async fn get_all_settings(
+    state: tauri::State<'_, SqlitePool>,
+) -> Result<HashMap<String, String>, String> {
     let rows: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings")
         .fetch_all(&*state)
         .await
         .map_err(|e| e.to_string())?;
-    
+
     let mut map = HashMap::new();
     for (k, v) in rows {
         map.insert(k, v);
     }
-    
+
     Ok(map)
 }
-
 
 #[derive(serde::Serialize)]
 pub struct SystemLog {
@@ -155,7 +195,11 @@ pub struct SystemLog {
 }
 
 #[tauri::command]
-async fn write_system_log(event_type: String, message: String, state: tauri::State<'_, SqlitePool>) -> Result<(), String> {
+async fn write_system_log(
+    event_type: String,
+    message: String,
+    state: tauri::State<'_, SqlitePool>,
+) -> Result<(), String> {
     sqlx::query("INSERT INTO system_logs (event_type, message) VALUES (?, ?)")
         .bind(&event_type)
         .bind(&message)
@@ -173,61 +217,98 @@ async fn get_system_logs(state: tauri::State<'_, SqlitePool>) -> Result<Vec<Syst
     .fetch_all(&*state)
     .await
     .map_err(|e| e.to_string())?;
-    
-    let logs = rows.into_iter().map(|(id, timestamp, event_type, message)| SystemLog {
-        id, timestamp, event_type, message
-    }).collect();
-    
+
+    let logs = rows
+        .into_iter()
+        .map(|(id, timestamp, event_type, message)| SystemLog {
+            id,
+            timestamp,
+            event_type,
+            message,
+        })
+        .collect();
+
     Ok(logs)
 }
 
 #[tauri::command]
-async fn save_setting(key: String, value: String, state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<(), String> {
+async fn save_setting(
+    key: String,
+    value: String,
+    state: tauri::State<'_, SqlitePool>,
+    mysql_state: tauri::State<'_, MysqlState>,
+) -> Result<(), String> {
     sqlx::query("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
         .bind(&key)
         .bind(value)
         .execute(&*state)
         .await
         .map_err(|e| e.to_string())?;
-        
+
     if key.starts_with("db_") {
         let mut guard = mysql_state.0.lock().await;
-        if let Some(pool) = guard.take() {
-             
-        }
+        if let Some(pool) = guard.take() {}
     }
-    
+
     Ok(())
 }
 
-async fn get_mysql_pool(sqlite_pool: &SqlitePool, mysql_state: &tauri::State<'_, MysqlState>) -> Result<MySqlPool, String> {
+async fn get_mysql_pool(
+    sqlite_pool: &SqlitePool,
+    mysql_state: &tauri::State<'_, MysqlState>,
+) -> Result<MySqlPool, String> {
     let mut guard = mysql_state.0.lock().await;
     if let Some(pool) = &*guard {
         return Ok(pool.clone());
     }
 
-    let rows: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings").fetch_all(sqlite_pool).await.map_err(|e| e.to_string())?;
+    let rows: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings")
+        .fetch_all(sqlite_pool)
+        .await
+        .map_err(|e| e.to_string())?;
     let mut settings = std::collections::HashMap::new();
-    for (k, v) in rows { settings.insert(k, v); }
+    for (k, v) in rows {
+        settings.insert(k, v);
+    }
 
-    let db_host = settings.get("db_host").cloned().unwrap_or_else(|| "192.168.1.64".to_string());
-    let db_port = settings.get("db_port").cloned().unwrap_or_else(|| "58329".to_string());
-    let db_user = settings.get("db_user").cloned().unwrap_or_else(|| "root".to_string());
-    let db_pass = settings.get("db_pass").cloned().unwrap_or_else(|| "l0mY4cH9H?h9".to_string());
-    let db_name = settings.get("db_name").cloned().unwrap_or_else(|| "dtscontroler".to_string());
-    
+    let db_host = settings
+        .get("db_host")
+        .cloned()
+        .unwrap_or_else(|| "192.168.1.64".to_string());
+    let db_port = settings
+        .get("db_port")
+        .cloned()
+        .unwrap_or_else(|| "58329".to_string());
+    let db_user = settings
+        .get("db_user")
+        .cloned()
+        .unwrap_or_else(|| "root".to_string());
+    let db_pass = settings
+        .get("db_pass")
+        .cloned()
+        .unwrap_or_else(|| "l0mY4cH9H?h9".to_string());
+    let db_name = settings
+        .get("db_name")
+        .cloned()
+        .unwrap_or_else(|| "dtscontroler".to_string());
+
     let options = MySqlConnectOptions::new()
-        .host(&db_host).port(db_port.parse().unwrap_or(3306)).username(&db_user).password(&db_pass).database(&db_name);
-        
+        .host(&db_host)
+        .port(db_port.parse().unwrap_or(3306))
+        .username(&db_user)
+        .password(&db_pass)
+        .database(&db_name);
+
     let pool = MySqlPoolOptions::new()
         .max_connections(10)
         .acquire_timeout(std::time::Duration::from_secs(5))
-        .connect_with(options).await.map_err(|e| format!("MySQL Connection Failed: {}", e))?;
-        
+        .connect_with(options)
+        .await
+        .map_err(|e| format!("MySQL Connection Failed: {}", e))?;
+
     *guard = Some(pool.clone());
     Ok(pool.clone())
 }
-
 
 #[tauri::command]
 async fn get_users(state: tauri::State<'_, SqlitePool>) -> Result<Vec<User>, String> {
@@ -235,7 +316,7 @@ async fn get_users(state: tauri::State<'_, SqlitePool>) -> Result<Vec<User>, Str
         .fetch_all(&*state)
         .await
         .map_err(|e| e.to_string())?;
-    
+
     Ok(rows)
 }
 
@@ -243,14 +324,16 @@ async fn get_users(state: tauri::State<'_, SqlitePool>) -> Result<Vec<User>, Str
 async fn toggle_fullscreen(window: tauri::Window) -> Result<bool, String> {
     let is_fullscreen = window.is_fullscreen().unwrap_or(false);
     let new_state = !is_fullscreen;
-    
+
     // Set fullscreen
-    window.set_fullscreen(new_state).map_err(|e| e.to_string())?;
-    
+    window
+        .set_fullscreen(new_state)
+        .map_err(|e| e.to_string())?;
+
     // Explicitly toggle decorations (titlebar) for true kiosk mode
     // Hide decorations if fullscreen, show if not
     let _ = window.set_decorations(!new_state);
-    
+
     Ok(new_state)
 }
 
@@ -261,13 +344,17 @@ struct SyncResult {
 }
 
 #[tauri::command]
-async fn sync_dts_segments(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<SyncResult, String> {
+async fn sync_dts_segments(
+    state: tauri::State<'_, SqlitePool>,
+    mysql_state: tauri::State<'_, MysqlState>,
+) -> Result<SyncResult, String> {
     // 1. Get MySQL connection settings from SQLite
-    let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
-        .fetch_all(&*state)
-        .await
-        .map_err(|e| format!("Failed to read DB settings: {}", e))?;
-    
+    let settings: Vec<(String, String)> =
+        sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
+            .fetch_all(&*state)
+            .await
+            .map_err(|e| format!("Failed to read DB settings: {}", e))?;
+
     let mut db_host = String::from("192.168.1.64");
     let mut db_port = String::from("58329");
     let mut db_user = String::from("root");
@@ -288,13 +375,19 @@ async fn sync_dts_segments(state: tauri::State<'_, SqlitePool>, mysql_state: tau
     let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     // 3. Fetch from opt_fq_list
     #[derive(sqlx::FromRow)]
-    struct OptRow { ch: i32, code: Option<i32>, fq_table: Option<String>, start: Option<i32>, end: Option<i32> }
+    struct OptRow {
+        ch: i32,
+        code: Option<i32>,
+        fq_table: Option<String>,
+        start: Option<i32>,
+        end: Option<i32>,
+    }
 
     let rows: Vec<OptRow> = sqlx::query_as(
         "SELECT f.Ch as ch, f.Code as code, f.FqTable as fq_table, f.Start as start, f.End as end 
          FROM opt_fq_list f 
          JOIN chinfo c ON f.Ch = c.Code 
-         WHERE c.En = 1"
+         WHERE c.En = 1",
     )
     .fetch_all(&mysql_pool)
     .await
@@ -306,8 +399,11 @@ async fn sync_dts_segments(state: tauri::State<'_, SqlitePool>, mysql_state: tau
     let mut new_added = 0;
     for row in &rows {
         if let Some(code) = row.code {
-            let original_name = row.fq_table.clone().unwrap_or_else(|| format!("CSection{}", code));
-            
+            let original_name = row
+                .fq_table
+                .clone()
+                .unwrap_or_else(|| format!("CSection{}", code));
+
             let result = sqlx::query(
                 "INSERT INTO segment_mappings (dts_ch, dts_code, original_name, main_group, start_m, end_m) 
                  VALUES (?, ?, ?, 'Unassigned', ?, ?) 
@@ -337,34 +433,39 @@ async fn sync_dts_segments(state: tauri::State<'_, SqlitePool>, mysql_state: tau
 }
 
 #[tauri::command]
-async fn get_segment_mappings(state: tauri::State<'_, SqlitePool>) -> Result<Vec<crate::domain::app_models::SegmentMapping>, String> {
-    let rows: Vec<crate::domain::app_models::SegmentMapping> = sqlx::query_as("SELECT * FROM segment_mappings ORDER BY dts_ch, dts_code")
-        .fetch_all(&*state)
-        .await
-        .map_err(|e| e.to_string())?;
-    
+async fn get_segment_mappings(
+    state: tauri::State<'_, SqlitePool>,
+) -> Result<Vec<crate::domain::app_models::SegmentMapping>, String> {
+    let rows: Vec<crate::domain::app_models::SegmentMapping> =
+        sqlx::query_as("SELECT * FROM segment_mappings ORDER BY dts_ch, dts_code")
+            .fetch_all(&*state)
+            .await
+            .map_err(|e| e.to_string())?;
+
     Ok(rows)
 }
 
 #[tauri::command]
 async fn update_segment_mapping(
-    id: i32, 
-    custom_name: Option<String>, 
+    id: i32,
+    custom_name: Option<String>,
     main_group: String,
     sub_group: Option<String>,
     start_m: Option<f64>,
     end_m: Option<f64>,
-    state: tauri::State<'_, SqlitePool>
+    state: tauri::State<'_, SqlitePool>,
 ) -> Result<(), String> {
     // Only update mapping fields, NEVER overwrite start_m or end_m with null from the UI!
-    let _ = sqlx::query("UPDATE segment_mappings SET custom_name = ?, main_group = ?, sub_group = ? WHERE id = ?")
-        .bind(custom_name)
-        .bind(main_group)
-        .bind(sub_group)
-        .bind(id)
-        .execute(&*state)
-        .await
-        .map_err(|e| format!("Failed to update mapping: {}", e))?;
+    let _ = sqlx::query(
+        "UPDATE segment_mappings SET custom_name = ?, main_group = ?, sub_group = ? WHERE id = ?",
+    )
+    .bind(custom_name)
+    .bind(main_group)
+    .bind(sub_group)
+    .bind(id)
+    .execute(&*state)
+    .await
+    .map_err(|e| format!("Failed to update mapping: {}", e))?;
     Ok(())
 }
 
@@ -387,43 +488,81 @@ pub struct LiveSegment {
 }
 
 #[tauri::command]
-async fn get_live_segments(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<Vec<LiveSegment>, String> {
+async fn get_live_segments(
+    state: tauri::State<'_, SqlitePool>,
+    mysql_state: tauri::State<'_, MysqlState>,
+) -> Result<Vec<LiveSegment>, String> {
     // Get local mappings
     let mappings = get_segment_mappings(state.clone()).await?;
-    
+
     // Connect to MySQL
-    let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
-        .fetch_all(&*state)
-        .await
-        .map_err(|e| e.to_string())?;
-        
+    let settings: Vec<(String, String)> =
+        sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
+            .fetch_all(&*state)
+            .await
+            .map_err(|e| e.to_string())?;
+
     let mut db_host = String::from("192.168.1.64");
     let mut db_port = String::from("58329");
     let mut db_user = String::from("root");
     let mut db_pass = String::from("l0mY4cH9H?h9");
     let mut db_name = String::from("dtscontroler");
-    for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
-    
+    for (k, v) in settings {
+        match k.as_str() {
+            "db_host" => db_host = v,
+            "db_port" => db_port = v,
+            "db_user" => db_user = v,
+            "db_pass" => db_pass = v,
+            "db_name" => db_name = v,
+            _ => {}
+        }
+    }
+
     let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     #[derive(sqlx::FromRow)]
-    struct LiveRow { ch: i32, code: i32, temp_avg: Option<i32>, temp_min: Option<i32>, temp_max: Option<i32>, temp_min_p: Option<i32>, temp_max_p: Option<i32> }
-    
+    struct LiveRow {
+        ch: i32,
+        code: i32,
+        temp_avg: Option<i32>,
+        temp_min: Option<i32>,
+        temp_max: Option<i32>,
+        temp_min_p: Option<i32>,
+        temp_max_p: Option<i32>,
+    }
+
     let live_data: Vec<LiveRow> = sqlx::query_as("SELECT Ch as ch, Code as code, TempAvg as temp_avg, TempMin as temp_min, TempMax as temp_max, TempMinP as temp_min_p, TempMaxP as temp_max_p FROM opt_fq_list")
         .fetch_all(&mysql_pool)
         .await
         .map_err(|e| format!("MySQL Fetch Failed: {}", e))?;
-        
+
     let mut results = Vec::new();
     for map in mappings {
-        let live = live_data.iter().find(|l| l.ch == map.dts_ch && l.code == map.dts_code);
+        let live = live_data
+            .iter()
+            .find(|l| l.ch == map.dts_ch && l.code == map.dts_code);
         if let Some(l) = live {
             let temp_avg = l.temp_avg.unwrap_or(0) as f32 / 10.0;
             let temp_min = l.temp_min.unwrap_or(0) as f32 / 10.0;
             let temp_max = l.temp_max.unwrap_or(0) as f32 / 10.0;
             let temp_min_p = l.temp_min_p.unwrap_or(0);
             let temp_max_p = l.temp_max_p.unwrap_or(0);
-            
-            results.push(LiveSegment { id: map.id.unwrap_or(0), dts_ch: map.dts_ch, dts_code: map.dts_code, original_name: map.original_name, custom_name: map.custom_name, main_group: map.main_group, sub_group: map.sub_group, start_m: map.start_m, end_m: map.end_m, temp_avg, temp_min, temp_max, temp_min_p, temp_max_p });
+
+            results.push(LiveSegment {
+                id: map.id.unwrap_or(0),
+                dts_ch: map.dts_ch,
+                dts_code: map.dts_code,
+                original_name: map.original_name,
+                custom_name: map.custom_name,
+                main_group: map.main_group,
+                sub_group: map.sub_group,
+                start_m: map.start_m,
+                end_m: map.end_m,
+                temp_avg,
+                temp_min,
+                temp_max,
+                temp_min_p,
+                temp_max_p,
+            });
         }
     }
     Ok(results)
@@ -435,19 +574,19 @@ pub struct CurvePoint {
     pub temp: f32,
 }
 
-
 #[tauri::command]
 async fn get_spatial_profile(
     main_group: String,
-    state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
+    state: tauri::State<'_, SqlitePool>,
+    mysql_state: tauri::State<'_, MysqlState>,
 ) -> Result<Vec<CurvePoint>, String> {
     #[derive(sqlx::FromRow)]
     struct MapBounds {
         dts_ch: i32,
         min_start: Option<i32>,
-        max_end: Option<i32>
+        max_end: Option<i32>,
     }
-    
+
     let bound: Option<MapBounds> = if main_group == "All" {
         sqlx::query_as("SELECT dts_ch, MIN(start_m) as min_start, MAX(end_m) as max_end FROM segment_mappings GROUP BY dts_ch LIMIT 1")
             .fetch_optional(&*state)
@@ -458,32 +597,41 @@ async fn get_spatial_profile(
             .fetch_optional(&*state)
             .await.map_err(|e| e.to_string())?
     };
-        
+
     let b = match bound {
         Some(b) => b,
         None => return Ok(Vec::new()),
     };
-    
+
     let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     #[derive(sqlx::FromRow)]
-    struct CurveRow { str: Option<String> }
-    
+    struct CurveRow {
+        str: Option<String>,
+    }
+
     let row: Option<CurveRow> = sqlx::query_as("SELECT str FROM curvebuff WHERE Ch = ?")
         .bind(b.dts_ch)
         .fetch_optional(&mysql_pool)
-        .await.map_err(|e| e.to_string())?;
-        
+        .await
+        .map_err(|e| e.to_string())?;
+
     let mut points = Vec::new();
     if let Some(r) = row {
         if let Some(s) = r.str {
             let vals: Vec<&str> = s.split(',').collect();
             let start = b.min_start.unwrap_or(0) as usize;
-            let end = std::cmp::min(b.max_end.unwrap_or(vals.len() as i32) as usize, vals.len().saturating_sub(1));
+            let end = std::cmp::min(
+                b.max_end.unwrap_or(vals.len() as i32) as usize,
+                vals.len().saturating_sub(1),
+            );
             let start = std::cmp::min(start, end);
-            
+
             for i in start..=end {
                 let t = vals[i].parse::<f32>().unwrap_or(0.0) / 10.0;
-                points.push(CurvePoint { distance: i as i32, temp: t });
+                points.push(CurvePoint {
+                    distance: i as i32,
+                    temp: t,
+                });
             }
         }
     }
@@ -495,37 +643,56 @@ async fn get_segment_curve(
     dts_ch: i32,
     start_m: i32,
     end_m: i32,
-    state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
+    state: tauri::State<'_, SqlitePool>,
+    mysql_state: tauri::State<'_, MysqlState>,
 ) -> Result<Vec<CurvePoint>, String> {
-    let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
-        .fetch_all(&*state).await.map_err(|e| e.to_string())?;
-        
+    let settings: Vec<(String, String)> =
+        sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
+            .fetch_all(&*state)
+            .await
+            .map_err(|e| e.to_string())?;
+
     let mut db_host = String::from("192.168.1.64");
     let mut db_port = String::from("58329");
     let mut db_user = String::from("root");
     let mut db_pass = String::from("l0mY4cH9H?h9");
     let mut db_name = String::from("dtscontroler");
-    for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
-    
+    for (k, v) in settings {
+        match k.as_str() {
+            "db_host" => db_host = v,
+            "db_port" => db_port = v,
+            "db_user" => db_user = v,
+            "db_pass" => db_pass = v,
+            "db_name" => db_name = v,
+            _ => {}
+        }
+    }
+
     let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     #[derive(sqlx::FromRow)]
-    struct CurveRow { str: Option<String> }
-    
+    struct CurveRow {
+        str: Option<String>,
+    }
+
     let row: Option<CurveRow> = sqlx::query_as("SELECT str FROM curvebuff WHERE Ch = ?")
         .bind(dts_ch)
         .fetch_optional(&mysql_pool)
-        .await.map_err(|e| e.to_string())?;
-        
+        .await
+        .map_err(|e| e.to_string())?;
+
     let mut points = Vec::new();
     if let Some(r) = row {
         if let Some(s) = r.str {
             let vals: Vec<&str> = s.split(',').collect();
             let end = std::cmp::min(end_m as usize, vals.len().saturating_sub(1));
             let start = std::cmp::min(start_m as usize, end);
-            
+
             for i in start..=end {
                 let t = vals[i].parse::<f32>().unwrap_or(0.0) / 10.0;
-                points.push(CurvePoint { distance: i as i32, temp: t });
+                points.push(CurvePoint {
+                    distance: i as i32,
+                    temp: t,
+                });
             }
         }
     }
@@ -543,40 +710,47 @@ async fn get_segment_history(
     dts_ch: i32,
     dts_code: i32,
     minutes: i32,
-    state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
+    state: tauri::State<'_, SqlitePool>,
+    mysql_state: tauri::State<'_, MysqlState>,
 ) -> Result<Vec<HistoryPoint>, String> {
     let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     #[derive(sqlx::FromRow)]
     #[allow(non_snake_case)]
-    struct HistRow { CreationTime: Option<chrono::DateTime<chrono::Local>>, TempAvg: Option<i32> }
-    
+    struct HistRow {
+        CreationTime: Option<chrono::DateTime<chrono::Local>>,
+        TempAvg: Option<i32>,
+    }
+
     let limit = minutes * 60;
-    
+
     let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg FROM fq_history_list WHERE Ch = ? AND Code = ? ORDER BY CreationTime DESC LIMIT ?")
         .bind(dts_ch).bind(dts_code).bind(limit)
         .fetch_all(&mysql_pool)
         .await.map_err(|e| e.to_string())?;
-        
+
     let mut points = Vec::new();
-    if rows.is_empty() { return Ok(points); }
+    if rows.is_empty() {
+        return Ok(points);
+    }
     let latest_time = rows[0].CreationTime.unwrap_or_default();
     let cutoff_time = latest_time - chrono::Duration::minutes(minutes as i64);
-    
+
     for r in rows.into_iter().rev() {
         if let Some(ct) = r.CreationTime {
-            if ct < cutoff_time { continue; }
+            if ct < cutoff_time {
+                continue;
+            }
             let temp = r.TempAvg.unwrap_or(0) as f32 / 10.0;
             if temp >= 0.0 {
-                points.push(HistoryPoint { 
-                    time: ct.format("%H:%M").to_string(), 
-                    temp 
+                points.push(HistoryPoint {
+                    time: ct.format("%H:%M").to_string(),
+                    temp,
                 });
             }
         }
     }
     Ok(points)
 }
-
 
 #[derive(serde::Serialize)]
 pub struct GroupHistoryPoint {
@@ -588,39 +762,64 @@ pub struct GroupHistoryPoint {
 async fn get_groups_history(
     start_dt: String,
     end_dt: String,
-    state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>
+    state: tauri::State<'_, SqlitePool>,
+    mysql_state: tauri::State<'_, MysqlState>,
 ) -> Result<Vec<GroupHistoryPoint>, String> {
-    use chrono::{Local, TimeZone, NaiveDateTime};
-    let parsed_start = Local.from_local_datetime(&NaiveDateTime::parse_from_str(&start_dt, "%Y-%m-%d %H:%M:%S").map_err(|e| e.to_string())?).unwrap();
-    let parsed_end = Local.from_local_datetime(&NaiveDateTime::parse_from_str(&end_dt, "%Y-%m-%d %H:%M:%S").map_err(|e| e.to_string())?).unwrap();
-    let mappings: Vec<crate::domain::app_models::SegmentMapping> = sqlx::query_as("SELECT * FROM segment_mappings WHERE main_group != 'Unassigned'")
-        .fetch_all(&*state).await.map_err(|e| e.to_string())?;
-        
+    use chrono::{Local, NaiveDateTime, TimeZone};
+    let parsed_start = Local
+        .from_local_datetime(
+            &NaiveDateTime::parse_from_str(&start_dt, "%Y-%m-%d %H:%M:%S")
+                .map_err(|e| e.to_string())?,
+        )
+        .unwrap();
+    let parsed_end = Local
+        .from_local_datetime(
+            &NaiveDateTime::parse_from_str(&end_dt, "%Y-%m-%d %H:%M:%S")
+                .map_err(|e| e.to_string())?,
+        )
+        .unwrap();
+    let mappings: Vec<crate::domain::app_models::SegmentMapping> =
+        sqlx::query_as("SELECT * FROM segment_mappings WHERE main_group != 'Unassigned'")
+            .fetch_all(&*state)
+            .await
+            .map_err(|e| e.to_string())?;
+
     let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
-    
+
     #[derive(sqlx::FromRow, Clone)]
     #[allow(non_snake_case)]
-    struct HistRow { CreationTime: Option<chrono::DateTime<chrono::Local>>, TempAvg: Option<i32>, Ch: i32, Code: i32 }
-    
+    struct HistRow {
+        CreationTime: Option<chrono::DateTime<chrono::Local>>,
+        TempAvg: Option<i32>,
+        Ch: i32,
+        Code: i32,
+    }
+
     struct FetchedSeg {
         group: String,
         rows: Vec<HistRow>,
     }
-    
+
     let mut all_fetched: Vec<FetchedSeg> = Vec::new();
     let limit = 2000;
-    
+
     for map in mappings {
         let rows: Vec<HistRow> = sqlx::query_as("SELECT CreationTime, TempAvg, Ch, Code FROM fq_history_list WHERE Ch = ? AND Code = ? AND CreationTime >= ? AND CreationTime <= ? ORDER BY CreationTime ASC LIMIT ?")
             .bind(map.dts_ch).bind(map.dts_code).bind(parsed_start).bind(parsed_end).bind(limit)
             .fetch_all(&mysql_pool)
             .await.map_err(|e| { eprintln!("SQL_ERR: {}", e); e }).unwrap_or_default();
-            
-        all_fetched.push(FetchedSeg { group: map.main_group.clone(), rows });
+
+        all_fetched.push(FetchedSeg {
+            group: map.main_group.clone(),
+            rows,
+        });
     }
-    
-    let mut group_data: std::collections::HashMap<String, std::collections::HashMap<String, Vec<f32>>> = std::collections::HashMap::new();
-    
+
+    let mut group_data: std::collections::HashMap<
+        String,
+        std::collections::HashMap<String, Vec<f32>>,
+    > = std::collections::HashMap::new();
+
     for seg in all_fetched {
         let group_name = seg.group;
         for r in seg.rows {
@@ -634,15 +833,24 @@ async fn get_groups_history(
             }
         }
     }
-    
-    let mut points: Vec<GroupHistoryPoint> = group_data.into_iter().map(|(time, groups)| {
-        let max_groups = groups.into_iter().map(|(g, temps)| {
-            let max_temp = temps.into_iter().fold(f32::NEG_INFINITY, f32::max);
-            (g, max_temp)
-        }).collect();
-        GroupHistoryPoint { time, groups: max_groups }
-    }).collect();
-    
+
+    let mut points: Vec<GroupHistoryPoint> = group_data
+        .into_iter()
+        .map(|(time, groups)| {
+            let max_groups = groups
+                .into_iter()
+                .map(|(g, temps)| {
+                    let max_temp = temps.into_iter().fold(f32::NEG_INFINITY, f32::max);
+                    (g, max_temp)
+                })
+                .collect();
+            GroupHistoryPoint {
+                time,
+                groups: max_groups,
+            }
+        })
+        .collect();
+
     points.sort_by(|a, b| a.time.cmp(&b.time));
     Ok(points)
 }
@@ -660,22 +868,47 @@ pub struct AlarmLog {
 }
 
 #[tauri::command]
-async fn get_alarms(date: Option<String>, state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<Vec<AlarmLog>, String> {
-    let settings: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
-        .fetch_all(&*state).await.map_err(|e| e.to_string())?;
-        
+async fn get_alarms(
+    date: Option<String>,
+    state: tauri::State<'_, SqlitePool>,
+    mysql_state: tauri::State<'_, MysqlState>,
+) -> Result<Vec<AlarmLog>, String> {
+    let settings: Vec<(String, String)> =
+        sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'db_%'")
+            .fetch_all(&*state)
+            .await
+            .map_err(|e| e.to_string())?;
+
     let mut db_host = String::from("192.168.1.64");
     let mut db_port = String::from("58329");
     let mut db_user = String::from("root");
     let mut db_pass = String::from("l0mY4cH9H?h9");
     let mut db_name = String::from("dtscontroler");
-    for (k, v) in settings { match k.as_str() { "db_host" => db_host = v, "db_port" => db_port = v, "db_user" => db_user = v, "db_pass" => db_pass = v, "db_name" => db_name = v, _ => {} } }
-    
+    for (k, v) in settings {
+        match k.as_str() {
+            "db_host" => db_host = v,
+            "db_port" => db_port = v,
+            "db_user" => db_user = v,
+            "db_pass" => db_pass = v,
+            "db_name" => db_name = v,
+            _ => {}
+        }
+    }
+
     let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     #[derive(sqlx::FromRow)]
     #[allow(non_snake_case)]
-    struct AlarmRow { ID: i32, CreationTime: Option<chrono::DateTime<chrono::Local>>, Ch: Option<i32>, Code: Option<i32>, AlarmPoint: Option<i32>, AlarmCode: Option<i32>, AlarmTemp: Option<i32>, AlarmResetTime: Option<chrono::DateTime<chrono::Local>> }
-    
+    struct AlarmRow {
+        ID: i32,
+        CreationTime: Option<chrono::DateTime<chrono::Local>>,
+        Ch: Option<i32>,
+        Code: Option<i32>,
+        AlarmPoint: Option<i32>,
+        AlarmCode: Option<i32>,
+        AlarmTemp: Option<i32>,
+        AlarmResetTime: Option<chrono::DateTime<chrono::Local>>,
+    }
+
     let rows: Vec<AlarmRow> = if let Some(ref d) = date {
         sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog WHERE CreationTime >= ? AND CreationTime < DATE_ADD(?, INTERVAL 1 DAY) ORDER BY CreationTime DESC LIMIT 1000")
             .bind(d.clone()).bind(d)
@@ -684,23 +917,30 @@ async fn get_alarms(date: Option<String>, state: tauri::State<'_, SqlitePool>, m
         sqlx::query_as("SELECT ID, CreationTime, Ch, Code, AlarmPoint, AlarmCode, AlarmTemp, AlarmResetTime FROM alarmlog ORDER BY CreationTime DESC LIMIT 50")
             .fetch_all(&mysql_pool).await.map_err(|e| e.to_string())?
     };
-        
+
     let mut alarms = Vec::new();
     for r in rows {
         let t = r.CreationTime.map(|ct| ct.to_rfc3339()).unwrap_or_default();
         let is_active = r.AlarmResetTime.is_none();
         alarms.push(AlarmLog {
-            id: r.ID, time: t, ch: r.Ch.unwrap_or(0), code: r.Code.unwrap_or(0),
-            distance: r.AlarmPoint.unwrap_or(0), alarm_type: r.AlarmCode.unwrap_or(0),
-            temp: r.AlarmTemp.unwrap_or(0) as f32 / 10.0, is_active
+            id: r.ID,
+            time: t,
+            ch: r.Ch.unwrap_or(0),
+            code: r.Code.unwrap_or(0),
+            distance: r.AlarmPoint.unwrap_or(0),
+            alarm_type: r.AlarmCode.unwrap_or(0),
+            temp: r.AlarmTemp.unwrap_or(0) as f32 / 10.0,
+            is_active,
         });
     }
     Ok(alarms)
 }
 
-
 #[tauri::command]
-async fn ack_all_alarms(state: tauri::State<'_, SqlitePool>, mysql_state: tauri::State<'_, MysqlState>) -> Result<(), String> {
+async fn ack_all_alarms(
+    state: tauri::State<'_, SqlitePool>,
+    mysql_state: tauri::State<'_, MysqlState>,
+) -> Result<(), String> {
     let mysql_pool = get_mysql_pool(&state, &mysql_state).await?;
     sqlx::query("UPDATE alarmlog SET AlarmResetTime = NOW() WHERE AlarmResetTime IS NULL")
         .execute(&mysql_pool)
@@ -724,36 +964,41 @@ async fn test_db_connection(
         .username(&user)
         .password(&pass)
         .database(&name);
-    
+
     let pool = sqlx::mysql::MySqlPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(std::time::Duration::from_secs(3))
         .connect_with(options)
         .await
         .map_err(|e| format!("MySQL Connection Failed: {}", e))?;
-        
+
     // Simple ping query
     sqlx::query("SELECT 1")
         .execute(&pool)
         .await
         .map_err(|e| format!("Query Failed: {}", e))?;
-        
+
     Ok("Connection successful!".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-
 #[tauri::command]
-async fn get_map_calibration(state: tauri::State<'_, SqlitePool>) -> Result<Vec<crate::domain::app_models::MapCalibration>, String> {
-    let rows: Vec<crate::domain::app_models::MapCalibration> = sqlx::query_as("SELECT * FROM map_calibration ORDER BY id")
-        .fetch_all(&*state)
-        .await
-        .map_err(|e| e.to_string())?;
+async fn get_map_calibration(
+    state: tauri::State<'_, SqlitePool>,
+) -> Result<Vec<crate::domain::app_models::MapCalibration>, String> {
+    let rows: Vec<crate::domain::app_models::MapCalibration> =
+        sqlx::query_as("SELECT * FROM map_calibration ORDER BY id")
+            .fetch_all(&*state)
+            .await
+            .map_err(|e| e.to_string())?;
     Ok(rows)
 }
 
 #[tauri::command]
-async fn save_map_calibration(state: tauri::State<'_, SqlitePool>, calib: crate::domain::app_models::MapCalibration) -> Result<(), String> {
+async fn save_map_calibration(
+    state: tauri::State<'_, SqlitePool>,
+    calib: crate::domain::app_models::MapCalibration,
+) -> Result<(), String> {
     if let Some(id) = calib.id {
         sqlx::query(
             "UPDATE map_calibration SET main_group = ?, start_m = ?, end_m = ?, start_svg_x = ?, start_svg_y = ?, end_svg_x = ?, end_svg_y = ?, start_lat = ?, start_lng = ?, end_lat = ?, end_lng = ? WHERE id = ?"
@@ -797,6 +1042,8 @@ async fn save_map_calibration(state: tauri::State<'_, SqlitePool>, calib: crate:
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let handle = app.handle().clone();

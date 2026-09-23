@@ -22,7 +22,7 @@ pub async fn init_db(app_dir: &PathBuf) -> Result<SqlitePool, sqlx::Error> {
             id TEXT PRIMARY KEY,
             role TEXT NOT NULL,
             status TEXT NOT NULL
-        );"
+        );",
     )
     .execute(&pool)
     .await?;
@@ -38,20 +38,20 @@ pub async fn init_db(app_dir: &PathBuf) -> Result<SqlitePool, sqlx::Error> {
         "CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
-        );"
+        );",
     )
     .execute(&pool)
     .await?;
 
     // Insert default thresholds
     sqlx::query(
-        "INSERT OR IGNORE INTO settings (key, value) VALUES ('warning_threshold', '60.0');"
+        "INSERT OR IGNORE INTO settings (key, value) VALUES ('warning_threshold', '60.0');",
     )
     .execute(&pool)
     .await?;
 
     sqlx::query(
-        "INSERT OR IGNORE INTO settings (key, value) VALUES ('critical_threshold', '70.0');"
+        "INSERT OR IGNORE INTO settings (key, value) VALUES ('critical_threshold', '70.0');",
     )
     .execute(&pool)
     .await?;
@@ -63,19 +63,18 @@ pub async fn init_db(app_dir: &PathBuf) -> Result<SqlitePool, sqlx::Error> {
             segment TEXT NOT NULL,
             message TEXT NOT NULL,
             type TEXT NOT NULL
-        );"
+        );",
     )
     .execute(&pool)
     .await?;
 
-    
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS system_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             event_type TEXT NOT NULL,
             message TEXT NOT NULL
-        );"
+        );",
     )
     .execute(&pool)
     .await?;
@@ -92,16 +91,19 @@ pub async fn init_db(app_dir: &PathBuf) -> Result<SqlitePool, sqlx::Error> {
             start_m INTEGER,
             end_m INTEGER,
             UNIQUE(dts_ch, dts_code)
-        );"
+        );",
     )
     .execute(&pool)
     .await?;
 
     // Try to add start_m and end_m if they don't exist
-    let _ = sqlx::query("ALTER TABLE segment_mappings ADD COLUMN start_m INTEGER").execute(&pool).await;
-    let _ = sqlx::query("ALTER TABLE segment_mappings ADD COLUMN end_m INTEGER").execute(&pool).await;
+    let _ = sqlx::query("ALTER TABLE segment_mappings ADD COLUMN start_m INTEGER")
+        .execute(&pool)
+        .await;
+    let _ = sqlx::query("ALTER TABLE segment_mappings ADD COLUMN end_m INTEGER")
+        .execute(&pool)
+        .await;
 
-    
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS map_calibration (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -116,7 +118,7 @@ pub async fn init_db(app_dir: &PathBuf) -> Result<SqlitePool, sqlx::Error> {
             start_lng REAL,
             end_lat REAL,
             end_lng REAL
-        );"
+        );",
     )
     .execute(&pool)
     .await?;
@@ -139,25 +141,23 @@ pub async fn init_db(app_dir: &PathBuf) -> Result<SqlitePool, sqlx::Error> {
          VALUES ('BC5', 0, 150, 1235.0, 314.0, 1355.0, 314.0, -6.2, 106.805, -6.2, 106.807);"
     ).execute(&pool).await?;
 
-    
     // Insert Default Calibration for BC4B-BC5 Transition
     sqlx::query(
         "INSERT OR IGNORE INTO map_calibration (main_group, start_m, end_m, start_svg_x, start_svg_y, end_svg_x, end_svg_y, start_lat, start_lng, end_lat, end_lng) 
          VALUES ('BC45-MOTOR', 0, 40, 1209.0, 290.0, 1241.0, 290.0, -6.2, 106.804, -6.2, 106.805);"
     ).execute(&pool).await?;
 
-    
     // FORCE MIGRATION: Update old map_calibration group names
     let _ = sqlx::query("UPDATE OR IGNORE map_calibration SET main_group = 'BEK56' WHERE main_group = 'FIBER A (TN BEK 5-6)'").execute(&pool).await;
     let _ = sqlx::query("UPDATE OR IGNORE map_calibration SET main_group = 'BEK34' WHERE main_group = 'FIBER B (TN BEK 3-4)'").execute(&pool).await;
     let _ = sqlx::query("UPDATE OR IGNORE map_calibration SET main_group = 'TCM16' WHERE main_group = 'FIBER D (TN TCM 1-6)'").execute(&pool).await;
     let _ = sqlx::query("UPDATE OR IGNORE map_calibration SET main_group = 'BC45-MOTOR' WHERE main_group = 'BC4B-BC5 TRANSITION'").execute(&pool).await;
-    
+
     // Clean up old experiment subgroups from previous run
     let _ = sqlx::query("DELETE FROM map_calibration WHERE main_group IN ('TN1-2', 'TN2-3', 'TN3-4', 'TN4-5', 'TN5-6', 'TN6-7', 'BEK3', 'BEK4', 'BEK5', 'BEK6')").execute(&pool).await;
 
     // INSERT EXACT SUBGROUPS AS DEFINED BY USER (stored as main_group in map_calibration for coordinate matching)
-    
+
     // line TCM16
     let _ = sqlx::query("INSERT OR IGNORE INTO map_calibration (main_group, start_m, end_m, start_svg_x, start_svg_y, end_svg_x, end_svg_y) VALUES ('TN12', 0, 100, 60.0, 314.0, 130.0, 314.0);").execute(&pool).await;
     let _ = sqlx::query("INSERT OR IGNORE INTO map_calibration (main_group, start_m, end_m, start_svg_x, start_svg_y, end_svg_x, end_svg_y) VALUES ('TN23', 0, 100, 130.0, 314.0, 200.0, 314.0);").execute(&pool).await;
@@ -175,9 +175,5 @@ pub async fn init_db(app_dir: &PathBuf) -> Result<SqlitePool, sqlx::Error> {
     let _ = sqlx::query("INSERT OR IGNORE INTO map_calibration (main_group, start_m, end_m, start_svg_x, start_svg_y, end_svg_x, end_svg_y) VALUES ('BEK56M', 0, 100, 375.0, 274.0, 445.0, 274.0);").execute(&pool).await;
     let _ = sqlx::query("INSERT OR IGNORE INTO map_calibration (main_group, start_m, end_m, start_svg_x, start_svg_y, end_svg_x, end_svg_y) VALUES ('BEK6CR', 0, 100, 445.0, 274.0, 513.0, 274.0);").execute(&pool).await;
 
-
     Ok(pool)
-
-
-
 }

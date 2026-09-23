@@ -1,5 +1,7 @@
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeFile } from '@tauri-apps/plugin-fs';
 
 export const exportElementToPDF = async (elementId: string, filename: string) => {
   const element = document.getElementById(elementId);
@@ -18,14 +20,29 @@ export const exportElementToPDF = async (elementId: string, filename: string) =>
     
     // Create header text
     pdf.setFontSize(14);
-    pdf.setTextColor(40);
+    pdf.setTextColor(180); // Lighter text for dark theme PDF or keep it visible
     pdf.text(`Exported Feature: ${filename}`, 14, 15);
     pdf.setFontSize(10);
     pdf.text(`Date: ${new Date().toLocaleString()}`, 14, 22);
 
     // Adjust image positioning to fit below header
     pdf.addImage(imgData, 'PNG', 10, 30, pdfWidth - 20, (pdfHeight * (pdfWidth - 20)) / pdfWidth);
-    pdf.save(`${filename}.pdf`);
+    
+    if ('__TAURI_INTERNALS__' in window) {
+      // In Tauri desktop environment
+      const filePath = await save({
+        filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
+        defaultPath: `${filename}.pdf`
+      });
+
+      if (filePath) {
+        const pdfBytes = pdf.output('arraybuffer');
+        await writeFile(filePath, new Uint8Array(pdfBytes));
+      }
+    } else {
+      // In browser fallback
+      pdf.save(`${filename}.pdf`);
+    }
   } catch (error) {
     console.error('Error generating PDF:', error);
   }
