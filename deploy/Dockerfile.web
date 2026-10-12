@@ -1,17 +1,24 @@
-# Dockerfile for DTS Web Frontend (Node build + Caddy serve)
-FROM node:20-slim as builder
+# Multi-stage Dockerfile for SENTRY Web & Caddy
+# Stage 1: Build Astro static marketing & doc site
+FROM node:20-alpine AS build-site
+WORKDIR /build/site
+COPY site/package*.json ./
+RUN npm ci
+COPY site/ ./
+RUN npm run build
 
-WORKDIR /app
-
+# Stage 2: Build Vite React SCADA application (Web target)
+FROM node:20-alpine AS build-app
+WORKDIR /build/app
 COPY app/package*.json ./
 RUN npm ci
-
 COPY app/ ./
 RUN npm run build:web
 
+# Stage 3: Production Caddy server with auto-HTTPS and static files
 FROM caddy:2-alpine
+COPY --from=build-site /build/site/dist /srv/site
+COPY --from=build-app /build/app/dist-web /srv/app
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
 
-COPY --from=builder /app/dist-web /srv
-
-EXPOSE 80
-CMD ["caddy", "file-server", "--root", "/srv"]
+EXPOSE 80 443
