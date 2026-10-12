@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for dts-api (Rust backend)
-FROM rust:1.80-slim as builder
+FROM rust:1-slim as builder
 
 WORKDIR /usr/src/app
 
@@ -13,7 +13,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 
 # Build release binary for dts-api
-RUN cargo build --release -p dts-api
+RUN cargo build --release --locked -p dts-api
 
 # Runtime minimal stage
 FROM debian:bookworm-slim
