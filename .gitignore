@@ -23,8 +23,9 @@ dist-web/
 
 # Large database dumps & local archive
 archive/
-*.sql
-*.sql.gz
+/*.sql
+/*.sql.gz
+!crates/api/migrations/*.sql
 
 # Logs
 logs/
