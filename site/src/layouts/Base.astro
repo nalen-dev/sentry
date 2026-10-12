@@ -1,0 +1,132 @@
+---
+import '../styles/global.css';
+interface Props { title?: string; description?: string; }
+const { title = 'SENTRY SCADA — Modern Industrial Automation & Telemetry Platform', description = 'Unified industrial SCADA & IoT platform for Distributed Temperature Sensing (DTS), Motor Control Centers (MCC), Conveyor Systems, Pump Stations, and plant-wide telemetry. Developed by CV Karya Artha Gemilang (KAG).' } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <link rel="icon" href="/sentry-logo-noname.jpg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container bar">
+        <a href="/" class="brand">
+          <img src="/sentry-logo-noname.jpg" alt="Sentry SCADA" />
+          <div class="brand-text">
+            <span class="brand-name">SENTRY <span class="text-cyan">SCADA</span></span>
+            <span class="brand-sub">Industrial Intelligence</span>
+          </div>
+        </a>
+        <button class="menu-btn" aria-label="Toggle navigation" id="menu-btn" aria-expanded="false">
+          <span class="menu-icon-bar"></span>
+          <span class="menu-icon-bar"></span>
+          <span class="menu-icon-bar"></span>
+        </button>
+        <nav class="nav" id="nav">
+          <a href="/#modules" class="nav-link">Modules</a>
+          <a href="/#architecture" class="nav-link">Architecture</a>
+          <a href="/#pricing" class="nav-link">Plans</a>
+          <a href="/docs" class="nav-link">API Docs</a>
+          <a href="/#contact" class="nav-link">Contact</a>
+          <a href="/login" class="btn btn-primary btn-sm nav-cta">Sign In</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <div class="cols">
+          <div class="footer-brand-col">
+            <div class="brand">
+              <img src="/sentry-logo-noname.jpg" alt="Sentry SCADA" />
+              <div class="brand-text">
+                <span class="brand-name" style="color:#fff">SENTRY <span class="text-cyan">SCADA</span></span>
+                <span class="brand-sub" style="color:var(--muted)">Enterprise Industrial Platform</span>
+              </div>
+            </div>
+            <p class="footer-desc">
+              Comprehensive real-time supervisory control, distributed optical telemetry, and automated industrial alarm orchestration for modern facilities.
+            </p>
+            <div class="developed-by-badge">
+              <span class="badge-label">Developed &amp; Engineered by</span>
+              <div class="dev-logo-wrap">
+                <img src="/logo-kag.jpeg" alt="CV KARYA ARTHA GEMILANG" />
+                <div class="dev-logo-text">
+                  <span class="dev-org-name">CV KARYA ARTHA GEMILANG</span>
+                  <span class="dev-org-tag">Industrial Automation</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p class="footer-heading">Platform Modules</p>
+            <ul class="footer-links">
+              <li><a href="/#modules">DTS Fiber-Optic Sensing</a></li>
+              <li><a href="/#modules">MCC Electrical Monitoring</a></li>
+              <li><a href="/#modules">Conveyor Control &amp; Interlocks</a></li>
+              <li><a href="/#modules">Pump &amp; Flow Stations</a></li>
+              <li><a href="/#modules">Environmental Sensors</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="footer-heading">Developers &amp; API</p>
+            <ul class="footer-links">
+              <li><a href="/docs">REST API Overview</a></li>
+              <li><a href="/docs#authentication">API Key Authentication</a></li>
+              <li><a href="/docs#live">Live Telemetry Feeds</a></li>
+              <li><a href="/docs#alarms">Alarm Events &amp; Webhooks</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="footer-heading">Access</p>
+            <ul class="footer-links">
+              <li><a href="/login">Operator &amp; Engineer Login</a></li>
+              <li><a href="/#pricing">Trial vs Pro Comparison</a></li>
+              <li><a href="/#contact">WhatsApp Direct Consultation</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="copy flex-between">
+          <span>&copy; {new Date().getFullYear()} SENTRY SCADA. All rights reserved.</span>
+          <span>Engineered by CV KARYA ARTHA GEMILANG &bull; Industrial Automation</span>
+        </div>
+      </div>
+    </footer>
+
+    <script is:inline>
+      const menuBtn = document.getElementById('menu-btn');
+      const nav = document.getElementById('nav');
+      menuBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = nav?.classList.toggle('open');
+        menuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+      // Close mobile menu when a nav link is clicked
+      nav?.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+          nav.classList.remove('open');
+          menuBtn?.setAttribute('aria-expanded', 'false');
+        });
+      });
+      // Close mobile menu if clicked outside
+      document.addEventListener('click', (e) => {
+        if (!nav?.contains(e.target) && !menuBtn?.contains(e.target)) {
+          nav?.classList.remove('open');
+          menuBtn?.setAttribute('aria-expanded', 'false');
+        }
+      });
+    </script>
+  </body>
+</html>

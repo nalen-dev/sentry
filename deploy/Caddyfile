@@ -1,0 +1,29 @@
+{
+    admin off
+}
+
+# Ganti ":80" dengan "sentrydashboard.com, www.sentrydashboard.com" di produksi
+# agar Caddy otomatis mengaktifkan HTTPS.
+:80 {
+    encode gzip zstd
+
+    # REST API -> backend Axum
+    handle /api/* {
+        reverse_proxy api:8080
+    }
+
+    # SCADA web app (React SPA): /main (launcher) dan /app/*
+    @spa path /main /main/* /app /app/* /assets/* /vite.svg
+    handle @spa {
+        root * /srv/app
+        try_files {path} /index.html
+        file_server
+    }
+
+    # Marketing site (Astro static): /, /docs, /login
+    handle {
+        root * /srv/site
+        try_files {path} {path}.html {path}/index.html
+        file_server
+    }
+}

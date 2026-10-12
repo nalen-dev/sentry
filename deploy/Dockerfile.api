@@ -1,0 +1,35 @@
+# Multi-stage Dockerfile for dts-api (Rust backend)
+FROM rust:1.80-slim as builder
+
+WORKDIR /usr/src/app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY Cargo.toml ./
+COPY crates ./crates
+
+# Build release binary for dts-api
+RUN cargo build --release -p dts-api
+
+# Runtime minimal stage
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /usr/src/app/target/release/dts-api /app/dts-api
+COPY crates/api/migrations /app/migrations
+
+ENV BIND_ADDR=0.0.0.0:8080
+
+EXPOSE 8080
+
+CMD ["/app/dts-api"]

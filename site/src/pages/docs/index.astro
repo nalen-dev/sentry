@@ -1,0 +1,359 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+<Base title="API Documentation — SENTRY SCADA Platform">
+  <div class="container docs">
+    <aside class="docs-sidebar">
+      <div class="docs-sidebar-header">
+        <span class="docs-sidebar-title">Documentation Index</span>
+      </div>
+
+      <div class="docs-nav-group">
+        <h4>Getting Started</h4>
+        <a href="#introduction">Overview &amp; Base URL</a>
+        <a href="#authentication">Authentication</a>
+        <a href="#responses">Standard Response Format</a>
+        <a href="#errors">HTTP Status Codes</a>
+      </div>
+
+      <div class="docs-nav-group">
+        <h4>Core Auth</h4>
+        <a href="#login">POST /auth/login</a>
+      </div>
+
+      <div class="docs-nav-group">
+        <div class="module-nav-header">
+          <h4>1. DTS Optical Module</h4>
+          <span class="custom-badge">Field Customizable</span>
+        </div>
+        <a href="#dts-live">GET /dts/temperatures/live</a>
+        <a href="#dts-segments">GET /dts/segments</a>
+        <a href="#dts-alarms">GET /dts/alarms</a>
+      </div>
+
+      <div class="docs-nav-group">
+        <div class="module-nav-header">
+          <h4>2. MCC Electrical Module</h4>
+          <span class="custom-badge">Field Customizable</span>
+        </div>
+        <a href="#mcc-telemetry">GET /mcc/feeders/telemetry</a>
+        <a href="#mcc-feeders">GET /mcc/feeders</a>
+        <a href="#mcc-trip-events">GET /mcc/trip-events</a>
+      </div>
+
+      <div class="docs-nav-group">
+        <div class="module-nav-header">
+          <h4>3. Conveyor Control Module</h4>
+          <span class="custom-badge">Field Customizable</span>
+        </div>
+        <a href="#conveyor-lines">GET /conveyor/lines/status</a>
+        <a href="#conveyor-interlocks">GET /conveyor/interlocks</a>
+        <a href="#conveyor-safety">GET /conveyor/safety-devices</a>
+      </div>
+
+      <div class="docs-nav-group">
+        <div class="module-nav-header">
+          <h4>4. Pump &amp; Hydraulic Module</h4>
+          <span class="custom-badge">Field Customizable</span>
+        </div>
+        <a href="#pump-stations">GET /pumps/stations/telemetry</a>
+        <a href="#pump-vibration">GET /pumps/bearing-vibration</a>
+      </div>
+
+      <div class="docs-nav-group">
+        <h4>Reference</h4>
+        <a href="#status-codes">Operational State Codes</a>
+        <a href="#plans">License &amp; API Quotas</a>
+      </div>
+    </aside>
+
+    <article class="doc">
+      <h1>SENTRY SCADA REST API Documentation</h1>
+      <p>
+        Unified developer reference for programmatic telemetry access, asset status queries, and alarm event streaming across all Sentry SCADA industrial modules.
+      </p>
+
+      <!-- Introduction -->
+      <h2 id="introduction">Introduction</h2>
+      <p>All industrial endpoints are served securely over HTTPS under the root API namespace:</p>
+      <pre><code>https://sentrydashboard.com/api/v1</code></pre>
+      <p>
+        Requests and responses enforce JSON serialization (<code>Content-Type: application/json</code>). Timestamps strictly conform to ISO 8601 in UTC format. Numerical metrics follow international engineering units (&deg;C, Amperes, Volts, bar, mm/s).
+      </p>
+      <div class="note">
+        <strong>Enterprise Pro License Required:</strong> Programmatic REST API endpoints and telemetry webhooks require an active <strong>Pro</strong> license. Trial accounts are granted complete visual SCADA dashboard access on desktop and mobile, but API key provisioning requires Pro status.
+      </div>
+
+      <!-- Authentication -->
+      <h2 id="authentication">Authentication</h2>
+      <p>Every programmatic request (excluding initial login) must supply either an API Key or a JWT Bearer Token in the HTTP headers:</p>
+
+      <h3>1. Industrial API Key (Recommended for SCADA Clients, ERP &amp; Agents)</h3>
+      <p>Provide the pre-shared secret key in the <code>X-API-Key</code> request header:</p>
+      <pre><code>X-API-Key: sentry_live_xxxxxxxxxxxxxxxxxxxxxxxx</code></pre>
+
+      <h3>2. JWT Bearer Token (Session Authentication)</h3>
+      <p>Obtained by authenticating via <a href="#login"><code>POST /auth/login</code></a>; valid for 7 days with automatic refresh:</p>
+      <pre><code>Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</code></pre>
+
+      <!-- Standard Responses -->
+      <h2 id="responses">Standard Response Format</h2>
+      <p>Every API response adheres to an envelope schema indicating operation status and payload:</p>
+      <pre><code>&#123;
+  "success": true,
+  "message": "Telemetry records retrieved successfully",
+  "data": &lt;payload&gt;
+&#125;</code></pre>
+
+      <!-- Errors -->
+      <h2 id="errors">HTTP Status Codes</h2>
+      <div class="table-responsive">
+        <table>
+          <thead><tr><th>Status Code</th><th>Meaning</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>200 OK</code></td><td>Success</td><td>Operation completed and payload returned.</td></tr>
+            <tr><td><code>400 Bad Request</code></td><td>Malformed Request</td><td>Invalid query parameters or malformed JSON body.</td></tr>
+            <tr><td><code>401 Unauthorized</code></td><td>Missing Credentials</td><td>Invalid or expired API Key / JWT token.</td></tr>
+            <tr><td><code>403 Forbidden</code></td><td>Restricted Resource</td><td>Valid credentials but account lacks Pro API license.</td></tr>
+            <tr><td><code>500 Server Error</code></td><td>Internal Error</td><td>Unexpected database or telemetry ingestion fault.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Core Auth: Login -->
+      <h2 id="login"><span class="method post">POST</span><span class="endpoint">/auth/login</span></h2>
+      <p>Exchange engineer or operator credentials for a session JWT bearer token.</p>
+      <h3>Request Body</h3>
+      <div class="table-responsive">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>username</code></td><td>string</td><td>Operator or Engineer account username.</td></tr>
+            <tr><td><code>password</code></td><td>string</td><td>Encrypted account password.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre><code>curl -X POST https://sentrydashboard.com/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '&#123;"username":"operator","password":"••••••••"&#125;'</code></pre>
+
+      <!-- ================================================================= -->
+      <!-- 1. DTS MODULE -->
+      <!-- ================================================================= -->
+      <div class="module-section-banner">
+        <div>
+          <span class="module-kicker">Industrial Optical Module</span>
+          <h2 class="module-heading">1. Distributed Temperature Sensing (DTS)</h2>
+        </div>
+        <span class="custom-pill">Can be customized based on field conditions &amp; site layout</span>
+      </div>
+      <p class="module-intro">
+        Continuous distributed fiber-optic thermometry along conveyors, tunnels, and cable trays. Metric resolutions, sampling intervals, channel counts, and alarm deadbands are fully configurable to match field DTS interrogator hardware and plant geometry.
+      </p>
+
+      <h3 id="dts-live"><span class="method get">GET</span><span class="endpoint">/dts/temperatures/live</span></h3>
+      <p>Real-time localized temperature readings across mapped fiber segments. Distance offsets and span lengths adapt dynamically to site-specific fiber routing.</p>
+      <pre><code>curl https://sentrydashboard.com/api/v1/dts/temperatures/live \
+  -H "X-API-Key: sentry_live_xxxxxxxx"</code></pre>
+      <h3>Response <code>data[]</code></h3>
+      <div class="table-responsive">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>segment_code</code></td><td>string</td><td>Segment code identifier (e.g. <code>BC4 A - 1</code>)</td></tr>
+            <tr><td><code>main_group</code></td><td>string</td><td>Conveyor asset grouping (e.g. <code>BC4 A</code>, <code>BC5</code>)</td></tr>
+            <tr><td><code>distance_m</code></td><td>number</td><td>Start location along the optical cable (meters)</td></tr>
+            <tr><td><code>temperature</code></td><td>number</td><td>Current peak localized temperature (&deg;C)</td></tr>
+            <tr><td><code>status</code></td><td>string</td><td><code>NORMAL</code> | <code>WARNING</code> | <code>CRITICAL</code></td></tr>
+            <tr><td><code>last_updated</code></td><td>string</td><td>Measurement timestamp (ISO 8601 UTC)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="dts-segments"><span class="method get">GET</span><span class="endpoint">/dts/segments</span></h3>
+      <p>Master calibration directory of optical cable segments, zone definitions, and physical plant coordinates (tailored per facility installation).</p>
+      <pre><code>curl https://sentrydashboard.com/api/v1/dts/segments \
+  -H "X-API-Key: sentry_live_xxxxxxxx"</code></pre>
+
+      <h3 id="dts-alarms"><span class="method get">GET</span><span class="endpoint">/dts/alarms</span></h3>
+      <p>Retrieve optical hotspot alarm incident logs with custom temperature trigger levels and hysteresis deadbands.</p>
+      <h3>Query Parameters</h3>
+      <div class="table-responsive">
+        <table>
+          <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody><tr><td><code>date</code></td><td>string (optional)</td><td>Filter specific date formatted as <code>YYYY-MM-DD</code></td></tr></tbody>
+        </table>
+      </div>
+      <pre><code>curl "https://sentrydashboard.com/api/v1/dts/alarms?date=2026-10-12" \
+  -H "X-API-Key: sentry_live_xxxxxxxx"</code></pre>
+
+      <!-- ================================================================= -->
+      <!-- 2. MCC ELECTRICAL MODULE -->
+      <!-- ================================================================= -->
+      <div class="module-section-banner">
+        <div>
+          <span class="module-kicker">Power &amp; Drive Distribution</span>
+          <h2 class="module-heading">2. Motor Control Center (MCC) Electrical Module</h2>
+        </div>
+        <span class="custom-pill">Can be customized based on MCC cubicle layout &amp; relay vendor</span>
+      </div>
+      <p class="module-intro">
+        Continuous multi-feeder electrical monitoring supporting intelligent relays, power meters, and variable frequency drives (VFDs). CT/PT ratios, trip thresholds, communication baud rates, and register maps are configured to match specific switchgear lineups.
+      </p>
+
+      <h3 id="mcc-telemetry"><span class="method get">GET</span><span class="endpoint">/mcc/feeders/telemetry</span></h3>
+      <p>
+        Live 3-phase telemetry across designated motor feeder buckets. Additional parameters such as kW, kVAR, THD, and winding RTDs can be added based on protection relay capabilities.
+      </p>
+      <pre><code>curl https://sentrydashboard.com/api/v1/mcc/feeders/telemetry \
+  -H "X-API-Key: sentry_live_xxxxxxxx"</code></pre>
+      <h3>Response <code>data[]</code></h3>
+      <div class="table-responsive">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>feeder_id</code></td><td>string</td><td>MCC Feeder bucket tag (e.g. <code>MCC-01-F04</code>)</td></tr>
+            <tr><td><code>asset_tag</code></td><td>string</td><td>Field motor load designation (e.g. <code>MTR-CV4-DRIVE1</code>)</td></tr>
+            <tr><td><code>current_r</code>, <code>current_s</code>, <code>current_t</code></td><td>number</td><td>Phase currents in Amperes (A)</td></tr>
+            <tr><td><code>voltage_ll</code></td><td>number</td><td>Line-to-line RMS voltage (V)</td></tr>
+            <tr><td><code>frequency_hz</code></td><td>number</td><td>Operating output frequency (Hz)</td></tr>
+            <tr><td><code>power_factor</code></td><td>number</td><td>Load power factor (0.00 &ndash; 1.00)</td></tr>
+            <tr><td><code>status</code></td><td>string</td><td><code>RUNNING</code> | <code>STOPPED</code> | <code>TRIPPED</code> | <code>STANDBY</code></td></tr>
+            <tr><td><code>thermal_capacity_pct</code></td><td>number</td><td>Accumulated thermal overload capacity (%)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="mcc-feeders"><span class="method get">GET</span><span class="endpoint">/mcc/feeders</span></h3>
+      <p>Directory of MCC cubicles, breaker ratings, contactor coils, and communication slave IDs configured for the plant.</p>
+      <pre><code>curl https://sentrydashboard.com/api/v1/mcc/feeders \
+  -H "X-API-Key: sentry_live_xxxxxxxx"</code></pre>
+
+      <h3 id="mcc-trip-events"><span class="method get">GET</span><span class="endpoint">/mcc/trip-events</span></h3>
+      <p>Historical log of thermal overloads, short-circuit trips, earth faults, and phase imbalance events with oscillography references.</p>
+      <pre><code>curl https://sentrydashboard.com/api/v1/mcc/trip-events?limit=50 \
+  -H "X-API-Key: sentry_live_xxxxxxxx"</code></pre>
+
+      <!-- ================================================================= -->
+      <!-- 3. CONVEYOR CONTROL MODULE -->
+      <!-- ================================================================= -->
+      <div class="module-section-banner">
+        <div>
+          <span class="module-kicker">Bulk Material Handling</span>
+          <h2 class="module-heading">3. Conveyor Control &amp; Interlocks Module</h2>
+        </div>
+        <span class="custom-pill">Can be customized based on transfer tower sequence &amp; sensor loop</span>
+      </div>
+      <p class="module-intro">
+        Supervisory telemetry for overland, decline, and plant conveyor systems. Interlock cascades, pre-start warning siren delays, pull-cord switch counts, and chute level triggers are customized according to civil plant topography and material handling flowsheets.
+      </p>
+
+      <h3 id="conveyor-lines"><span class="method get">GET</span><span class="endpoint">/conveyor/lines/status</span></h3>
+      <p>
+        Real-time belt speed, drive pulley slip percentage, transfer chute blockage detector state, and sequence interlock readiness.
+      </p>
+      <pre><code>curl https://sentrydashboard.com/api/v1/conveyor/lines/status \
+  -H "X-API-Key: sentry_live_xxxxxxxx"</code></pre>
+      <h3>Response <code>data[]</code></h3>
+      <div class="table-responsive">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>conveyor_id</code></td><td>string</td><td>Conveyor tag (e.g. <code>CV-BC4</code>, <code>CV-BC5</code>)</td></tr>
+            <tr><td><code>speed_mps</code></td><td>number</td><td>Measured belt speed in meters per second (m/s)</td></tr>
+            <tr><td><code>design_speed_mps</code></td><td>number</td><td>Nominal rated belt speed (m/s)</td></tr>
+            <tr><td><code>slip_pct</code></td><td>number</td><td>Drive pulley speed slip ratio (%)</td></tr>
+            <tr><td><code>chute_blocked</code></td><td>boolean</td><td>Transfer chute high-level obstruction sensor state</td></tr>
+            <tr><td><code>interlock_ready</code></td><td>boolean</td><td>Upstream &amp; downstream sequence interlock permissive</td></tr>
+            <tr><td><code>mode</code></td><td>string</td><td><code>AUTO</code> | <code>LOCAL</code> | <code>MAINTENANCE</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="conveyor-interlocks"><span class="method get">GET</span><span class="endpoint">/conveyor/interlocks</span></h3>
+      <p>Status matrix of sequence permissives between feeders, tripper cars, transfer chutes, and stackers.</p>
+      <pre><code>curl https://sentrydashboard.com/api/v1/conveyor/interlocks \
+  -H "X-API-Key: sentry_live_xxxxxxxx"</code></pre>
+
+      <h3 id="conveyor-safety"><span class="method get">GET</span><span class="endpoint">/conveyor/safety-devices</span></h3>
+      <p>
+        Addressable diagnostic loop status for emergency pull-cord switches, belt misalignment limit switches, and zero-speed sensors.
+      </p>
+      <pre><code>curl https://sentrydashboard.com/api/v1/conveyor/safety-devices?line=CV-BC4 \
+  -H "X-API-Key: sentry_live_xxxxxxxx"</code></pre>
+
+      <!-- ================================================================= -->
+      <!-- 4. PUMP & HYDRAULIC MODULE -->
+      <!-- ================================================================= -->
+      <div class="module-section-banner">
+        <div>
+          <span class="module-kicker">Hydraulic &amp; Slurry Transport</span>
+          <h2 class="module-heading">4. Pump &amp; Hydraulic Station Module</h2>
+        </div>
+        <span class="custom-pill">Can be customized based on piping configuration &amp; instrumentation</span>
+      </div>
+      <p class="module-intro">
+        Continuous telemetry for water intake, slurry discharge, cooling loops, and sump pit dewatering. Pressure transmitter spans, cavitation detection thresholds, dual-pump auto-alternation logic, and sump level setpoints are calibrated to site hydraulic specifications.
+      </p>
+
+      <h3 id="pump-stations"><span class="method get">GET</span><span class="endpoint">/pumps/stations/telemetry</span></h3>
+      <p>
+        Live manifold suction and discharge pressures (bar), volumetric flow meters ($m^3/h$), tank levels (%), and duty/standby states.
+      </p>
+      <pre><code>curl https://sentrydashboard.com/api/v1/pumps/stations/telemetry \
+  -H "X-API-Key: sentry_live_xxxxxxxx"</code></pre>
+      <h3>Response <code>data[]</code></h3>
+      <div class="table-responsive">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>station_id</code></td><td>string</td><td>Pump station designation (e.g. <code>PUMP-STN-02</code>)</td></tr>
+            <tr><td><code>pump_tag</code></td><td>string</td><td>Pump asset tag (e.g. <code>PMP-HYD-101A</code>)</td></tr>
+            <tr><td><code>suction_press_bar</code></td><td>number</td><td>Suction manifold pressure in bar</td></tr>
+            <tr><td><code>discharge_press_bar</code></td><td>number</td><td>Discharge header pressure in bar</td></tr>
+            <tr><td><code>flow_rate_m3h</code></td><td>number</td><td>Instantaneous flow rate in cubic meters per hour (m&sup3;/h)</td></tr>
+            <tr><td><code>sump_level_pct</code></td><td>number</td><td>Water / slurry sump reservoir level percentage (%)</td></tr>
+            <tr><td><code>state</code></td><td>string</td><td><code>DUTY_RUNNING</code> | <code>STANDBY</code> | <code>FAULT</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 id="pump-vibration"><span class="method get">GET</span><span class="endpoint">/pumps/bearing-vibration</span></h3>
+      <p>Bearing casing RMS vibration velocity readings (mm/s ISO 10816) and bearing temperature probes (&deg;C).</p>
+      <pre><code>curl https://sentrydashboard.com/api/v1/pumps/bearing-vibration \
+  -H "X-API-Key: sentry_live_xxxxxxxx"</code></pre>
+
+      <!-- Reference -->
+      <h2 id="status-codes">Operational State Codes</h2>
+      <div class="table-responsive">
+        <table>
+          <thead><tr><th>Module</th><th>State Code</th><th>Severity</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>DTS</td><td><code>NORMAL</code></td><td>Info</td><td>Temperature within safe baseline boundaries.</td></tr>
+            <tr><td>DTS</td><td><code>WARNING</code></td><td>Warning</td><td>Temperature elevated; monitoring hotspot threshold.</td></tr>
+            <tr><td>DTS</td><td><code>CRITICAL</code></td><td>Danger</td><td>Thermal threshold exceeded; automated suppression trigger.</td></tr>
+            <tr><td>MCC</td><td><code>RUNNING</code></td><td>Info</td><td>Contactor energized, nominal current draw.</td></tr>
+            <tr><td>MCC</td><td><code>TRIPPED</code></td><td>Danger</td><td>Breaker opened by protection relay (overload/earth fault).</td></tr>
+            <tr><td>Conveyor</td><td><code>INTERLOCK_OK</code></td><td>Info</td><td>All safety permissives healthy, start sequence allowed.</td></tr>
+            <tr><td>Conveyor</td><td><code>E_STOP_PULL</code></td><td>Danger</td><td>Pull-cord emergency switch mechanically tripped.</td></tr>
+            <tr><td>Pump</td><td><code>CAVITATION_WARN</code></td><td>Warning</td><td>Low suction pressure / vibration anomaly detected.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="plans">License &amp; API Quotas</h2>
+      <div class="table-responsive">
+        <table>
+          <thead><tr><th>Capability</th><th>Trial Tier</th><th>Enterprise Pro</th></tr></thead>
+          <tbody>
+            <tr><td>SCADA Visual Web &amp; Mobile App</td><td>&check; Full Interactive Access</td><td>&check; Full Interactive Access</td></tr>
+            <tr><td>DTS Optical Fiber Heatmap &amp; P&amp;ID</td><td>&check; Full Access</td><td>&check; Full Access</td></tr>
+            <tr><td>REST API Ingestion &amp; Polling Keys</td><td>&ndash; Restricted</td><td>&check; Unrestricted High-Frequency API Keys</td></tr>
+            <tr><td>Multi-Module Telemetry (MCC, Pumps, Belts)</td><td>&ndash; Demo Mode</td><td>&check; Complete Production Endpoints</td></tr>
+            <tr><td>Webhook Alarm Push Notifications</td><td>&ndash; Restricted</td><td>&check; Automated Webhook Integration</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </div>
+</Base>

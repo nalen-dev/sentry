@@ -1,24 +1,47 @@
+# Rust / Cargo build artifacts
+target/
+**/target/
+
+# Node.js dependencies & build distributions
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+dist-web/
+**/dist-web/
+.astro/
+**/dist-ssr/
+
+# Local databases, queues, and test cluster runtime
+.local_*
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Large database dumps & local archive
+archive/
+*.sql
+*.sql.gz
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Environment and secrets
+.env
+.env.*
+!.env.example
 
-# Editor directories and files
+# IDE and OS
+.DS_Store
+.idea/
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
 *.sw?
+*:Zone.Identifier
+*Zone.Identifier*

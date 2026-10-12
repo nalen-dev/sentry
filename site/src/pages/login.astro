@@ -1,0 +1,117 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="Sign In — SENTRY SCADA">
+  <div class="login-page-wrap">
+    <div class="login-card">
+      <div class="login-header">
+        <img src="/sentry-logo-noname.jpg" alt="Sentry SCADA" class="login-logo-img" />
+        <h1 class="login-title">Sign In to Sentry SCADA</h1>
+        <p class="login-subtitle">Supervisory Control &amp; Telemetry Management Platform</p>
+      </div>
+
+      <div class="alert" id="err"></div>
+
+      <form class="login-form" id="login-form">
+        <div class="field">
+          <label for="u">Username</label>
+          <input 
+            id="u" 
+            name="username" 
+            type="text" 
+            autocomplete="username" 
+            placeholder="Username" 
+            required 
+          />
+        </div>
+
+        <div class="field">
+          <div class="field-label-row">
+            <label for="p">Password</label>
+          </div>
+          <input 
+            id="p" 
+            name="password" 
+            type="password" 
+            autocomplete="current-password" 
+            placeholder="Enter your account password" 
+            required 
+          />
+        </div>
+
+        <button class="btn btn-primary login-submit-btn" type="submit" id="btn">
+          <span>Sign In to Dashboard</span> &rarr;
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <p class="login-help-text">
+          Need an account or password reset? <a href="/#contact">Contact engineering support</a>
+        </p>
+        <div class="login-dev-attr">
+          <span>Engineered by CV KARYA ARTHA GEMILANG (KAG)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script is:inline>
+    (function () {
+      // If already logged in, redirect directly to application launcher
+      if (localStorage.getItem('jwt_token')) { 
+        window.location.replace('/main'); 
+        return; 
+      }
+
+      var form = document.getElementById('login-form');
+      var err = document.getElementById('err');
+      var btn = document.getElementById('btn');
+
+      function fail(msg) { 
+        err.textContent = msg; 
+        err.className = 'alert error'; 
+      }
+
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        err.className = 'alert';
+        btn.disabled = true; 
+        btn.textContent = 'Authenticating...';
+
+        try {
+          var res = await fetch('/api/v1/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              username: form.username.value.trim(), 
+              password: form.password.value 
+            })
+          });
+
+          var json = await res.json().catch(function() { return {}; });
+
+          if (!res.ok) { 
+            fail(json.message || json.error || 'Invalid username or password.'); 
+            return; 
+          }
+
+          if (!json.success || !json.data) { 
+            fail(json.message || 'Invalid credentials. Please verify your access.'); 
+            return; 
+          }
+
+          localStorage.setItem('jwt_token', json.data.token);
+          localStorage.setItem('userRole', json.data.role);
+          localStorage.setItem('userId', json.data.user_id);
+          localStorage.setItem('userPlan', json.data.plan || 'trial');
+          window.location.assign('/main');
+        } catch (x) {
+          fail('Unable to connect to the authentication server. Please check your network.');
+        } finally {
+          btn.disabled = false; 
+          btn.innerHTML = '<span>Sign In to Dashboard</span> &rarr;';
+        }
+      });
+    })();
+  </script>
+</Base>

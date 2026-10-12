@@ -1,0 +1,17 @@
+# Dockerfile for DTS Web Frontend (Node build + Caddy serve)
+FROM node:20-slim as builder
+
+WORKDIR /app
+
+COPY app/package*.json ./
+RUN npm ci
+
+COPY app/ ./
+RUN npm run build:web
+
+FROM caddy:2-alpine
+
+COPY --from=builder /app/dist-web /srv
+
+EXPOSE 80
+CMD ["caddy", "file-server", "--root", "/srv"]

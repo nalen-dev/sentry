@@ -1,0 +1,314 @@
+---
+import Base from '../layouts/Base.astro';
+
+const modules = [
+  {
+    icon: '⚡',
+    title: 'MCC Electrical Monitoring',
+    category: 'Power & Motor Control',
+    desc: 'Continuous telemetry for current draw, phase voltage balance, power factor, thermal trip status, and VFD drive telemetry.',
+    features: ['3-Phase Current & Voltage', 'Thermal Overload Protection', 'Run/Fault Status Contact']
+  },
+  {
+    icon: '🔄',
+    title: 'Conveyor Control & Interlocks',
+    category: 'Material Handling',
+    desc: 'Sequence interlocks, pull-cord emergency stops, belt sway detectors, speed zero-speed switches, and chute blockage alerts.',
+    features: ['Emergency Pull-Wire Loop', 'Belt Misalignment Detection', 'Sequence Interlock Safety']
+  },
+  {
+    icon: '🌡️',
+    title: 'Distributed Temperature Sensing (DTS)',
+    category: 'Optical Fire Protection',
+    desc: 'Real-time multi-kilometer continuous temperature monitoring along conveyor lines with meter-by-meter hotspot localization.',
+    features: ['Continuous Fiber Telemetry', 'Hotspot Meter Positioning', 'Dual Hysteresis Alarms']
+  },
+  {
+    icon: '💧',
+    title: 'Pump & Flow Stations',
+    category: 'Hydraulic Systems',
+    desc: 'Suction and discharge pressures, impeller vibration, bearing temperature, sump levels, and automated run-time balancing.',
+    features: ['Pressure Transducer Feeds', 'Level Control Logic', 'Vibration Monitoring']
+  },
+  {
+    icon: '📊',
+    title: 'Plant-Wide Telemetry & Historian',
+    category: 'Data Infrastructure',
+    desc: 'High-frequency edge buffering, sub-second trend recording, loss-less store-and-forward edge sync during connection drops.',
+    features: ['Lossless Offline Edge Queue', 'Sub-second Data Granularity', 'Automated Daily Reports']
+  },
+  {
+    icon: '🔌',
+    title: 'Open Industrial REST API',
+    category: 'Enterprise Integration',
+    desc: 'Secure developer-friendly REST endpoints and programmatic webhooks for connecting to ERP, MES, or central monitoring desks.',
+    features: ['API Key Authentication', 'Live JSON Telemetry', 'Enterprise Pro License']
+  }
+];
+
+const architectures = [
+  {
+    step: '01',
+    title: 'Edge Interfacing',
+    desc: 'Interrogators, PLCs, RTUs, and DTS controllers poll field instruments, sensors, and optical fibers directly at the facility.'
+  },
+  {
+    step: '02',
+    title: 'Edge Queue & Hysteresis',
+    desc: 'The lightweight Sentry Agent filters deadbands, suppresses alarm flapping, and buffers telemetry locally in an offline SQLite store.'
+  },
+  {
+    step: '03',
+    title: 'Cloud Orchestration',
+    desc: 'Data streams into the Sentry High-Performance Rust backend with zero telemetry loss, instant partition rollover, and real-time alerts.'
+  },
+  {
+    step: '04',
+    title: 'Multi-Device Supervisory',
+    desc: 'Operators view live P&ID schematics, telemetry trends, and acknowledge alarms from desktop workstations or mobile tablets.'
+  }
+];
+---
+<Base>
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge-wrap">
+        <span class="pulse-dot"></span>
+        <span class="hero-badge-text">Industrial SCADA &amp; Telemetry</span>
+      </div>
+      
+      <h1>Unified Real-Time Industrial SCADA &amp; Telemetry Platform.</h1>
+      
+      <p>
+        Sentry SCADA connects your mission-critical field assets into a single cohesive control system — from Motor Control Centers (MCC) and conveyor lines to Distributed Temperature Sensing (DTS) and pump stations.
+      </p>
+      
+      <div class="actions">
+        <a href="/login" class="btn btn-primary">Launch Sentry Web</a>
+        <a href="/docs" class="btn btn-outline">Explore API Docs</a>
+        <a href="#contact" class="btn btn-outline" style="border-color:transparent;color:#38bdf8">Direct Consultation &rarr;</a>
+      </div>
+
+      <div class="hero-stats">
+        <div class="hero-stat-item">
+          <div class="num">&lt; 3s</div>
+          <div class="lbl">Live Field Telemetry</div>
+        </div>
+        <div class="hero-stat-item">
+          <div class="num">100%</div>
+          <div class="lbl">Offline Lossless Sync</div>
+        </div>
+        <div class="hero-stat-item">
+          <div class="num">Multi-Asset</div>
+          <div class="lbl">DTS, MCC, Pumps &amp; Belts</div>
+        </div>
+        <div class="hero-stat-item">
+          <div class="num">Web &amp; Mobile</div>
+          <div class="lbl">Cross-Platform SCADA</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Developer Attribution Banner -->
+  <div class="dev-banner">
+    <div class="container dev-banner-inner">
+      <div class="dev-title-block">
+        <span class="dev-label">System Engineering &amp; Automation</span>
+      </div>
+      <div class="dev-logo-container">
+        <div class="kag-card">
+          <img src="/logo-kag.jpeg" alt="CV KARYA ARTHA GEMILANG" />
+          <div class="kag-details">
+            <span class="kag-name">Developed by CV KARYA ARTHA GEMILANG (KAG)</span>
+            <span class="kag-role">Industrial Automation Division</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Platform Modules Section -->
+  <section id="modules">
+    <div class="container">
+      <span class="section-tag">Modular Architecture</span>
+      <h2 class="section-title">Built for Diverse Plant &amp; Mining Operations</h2>
+      <p class="section-sub">
+        Whether managing an entire conveyor line with high-voltage MCC drives, monitoring hydraulic flow pumps, or scanning miles of optical fibers, Sentry provides dedicated modules on a single interface.
+      </p>
+
+      <div class="grid grid-3">
+        {modules.map(m => (
+          <div class="card">
+            <div class="card-icon-wrap">{m.icon}</div>
+            <span class="tag">{m.category}</span>
+            <h3 style="margin-top:14px">{m.title}</h3>
+            <p>{m.desc}</p>
+            <ul style="list-style:none;padding:0;margin:18px 0 0;border-top:1px solid var(--line);padding-top:14px;font-size:13px;color:var(--ink-secondary)">
+              {m.features.map(f => (
+                <li style="padding:4px 0;display:flex;align-items:center;gap:6px">
+                  <span style="color:var(--brand);font-weight:bold">&bull;</span> {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works / High-Reliability Pipeline Section -->
+  <section class="soft" id="architecture">
+    <div class="container">
+      <span class="section-tag">High-Reliability Pipeline</span>
+      <h2 class="section-title">From Factory Floor to Remote Dispatch</h2>
+      <p class="section-sub">
+        Industrial communication designed to survive real-world network drops and unstable remote WAN connections without losing a single alarm.
+      </p>
+
+      <div class="grid grid-4">
+        {architectures.map(a => (
+          <div class="step-card">
+            <div class="step-num">{a.step}</div>
+            <h3>{a.title}</h3>
+            <p>{a.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Plans / Subscription Comparison -->
+  <section id="pricing">
+    <div class="container">
+      <div style="text-align:center;max-width:680px;margin:0 auto">
+        <span class="section-tag">Flexible Deployment</span>
+        <h2 class="section-title">Platform Access &amp; License Tiers</h2>
+        <p class="section-sub" style="margin-bottom:44px">
+          Deploy Sentry SCADA for testing and plant simulation, or scale to full enterprise operations with programmatic REST access.
+        </p>
+      </div>
+
+      <div class="pricing-wrap">
+        <!-- Trial Tier -->
+        <div class="plan">
+          <div class="plan-header">
+            <span class="badge">Evaluation</span>
+            <h3>Trial Plan</h3>
+            <p class="plan-sub">Comprehensive evaluation for operators, engineers, and plant managers.</p>
+          </div>
+          <ul>
+            <li>Full Web &amp; Mobile SCADA Visualization</li>
+            <li>Real-time P&amp;ID &amp; Telemetry Trends</li>
+            <li>Alarm Popups &amp; Status Acknowledgements</li>
+            <li>Historical Temperature &amp; Log Viewers</li>
+            <li>Up to 10 Concurrent Devices per Account</li>
+            <li>Watermark Ribbon Displayed in UI</li>
+            <li class="no">User Management &amp; Account Provisioning</li>
+            <li class="no">External REST API &amp; Webhook Keys</li>
+          </ul>
+          <a href="/login" class="btn btn-outline" style="width:100%;text-align:center">Start With Trial Account</a>
+        </div>
+
+        <!-- Pro Tier -->
+        <div class="plan pro">
+          <div class="plan-header">
+            <span class="badge pro">Production Ready</span>
+            <h3>Enterprise Pro</h3>
+            <p class="plan-sub">Full programmatic integration for production facilities and command centers.</p>
+          </div>
+          <ul>
+            <li>Everything included in Trial Plan</li>
+            <li>Full User Management (Create &amp; Manage Accounts)</li>
+            <li>Live Online User Presence &amp; Active Device Monitoring</li>
+            <li>Unlimited Concurrent Device Sessions</li>
+            <li>Programmatic High-Speed REST API Access</li>
+            <li>Persistent API Keys for 3rd-Party MES/ERP Sync</li>
+            <li>Multi-Asset Custom Mapping (MCC, Pumps, DTS)</li>
+            <li>Clean UI Without Watermarks or Ribbons</li>
+          </ul>
+          <a href="#contact" class="btn btn-primary" style="width:100%;text-align:center">Inquire Pro Upgrade</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Direct Consultation & Inquiries Section -->
+  <section class="soft" id="contact">
+    <div class="container contact-container">
+      <div style="text-align:center">
+        <span class="section-tag">Direct Engineering Inquiries</span>
+        <h2 class="section-title">Connect with KAG Automation Team</h2>
+        <p class="section-sub" style="margin-bottom:32px">
+          Need SCADA consultation, telemetry hardware commissioning, or custom MCC/DTS integration? Start a direct consultation with our engineering team via WhatsApp.
+        </p>
+      </div>
+
+      <!-- Quick WhatsApp Consultation Banner (No phone number shown) -->
+      <div class="wa-action-box">
+        <div class="wa-info">
+          <div class="wa-icon">&#128172;</div>
+          <div>
+            <span class="wa-label">Official Engineering Support</span>
+            <div class="wa-headline">Instant Technical Consultation</div>
+            <p style="margin:2px 0 0;font-size:13.5px;color:var(--muted)">Connect directly with our automation specialists via WhatsApp</p>
+          </div>
+        </div>
+        <a 
+          href="https://wa.me/6282113910596?text=Hello%20CV%20Karya%20Artha%20Gemilang%20(KAG),%20I%20would%20like%20to%20consult%20regarding%20the%20Sentry%20SCADA%20Platform." 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          class="btn btn-whatsapp"
+        >
+          <span>Chat on WhatsApp</span> &rarr;
+        </a>
+      </div>
+
+      <!-- Specific Consultation Inquiry Form (Directly opens WhatsApp) -->
+      <form class="form card" id="whatsapp-inquiry-form">
+        <h3 style="margin:0 0 6px;font-size:18px">Send Specific Project Requirements</h3>
+        <p style="margin:0 0 18px;font-size:13.5px;color:var(--muted)">Fill in your details below to generate a pre-formatted project inquiry directly on WhatsApp.</p>
+        
+        <div class="field">
+          <label for="c-name">Your Name / Organization</label>
+          <input id="c-name" name="name" type="text" placeholder="e.g. John Doe (Mining Operations)" required />
+        </div>
+        
+        <div class="field">
+          <label for="c-module">Target Application / Asset</label>
+          <select id="c-module" name="module">
+            <option value="Distributed Temperature Sensing (DTS)">Distributed Temperature Sensing (DTS Fiber Optic)</option>
+            <option value="Motor Control Center (MCC)">Motor Control Center (MCC Electrical Monitoring)</option>
+            <option value="Conveyor Control & Interlocks">Conveyor Control &amp; Interlocks</option>
+            <option value="Pump Station Monitoring">Pump Station Monitoring</option>
+            <option value="General Industrial SCADA">General Industrial SCADA / Plant Telemetry</option>
+          </select>
+        </div>
+        
+        <div class="field">
+          <label for="c-msg">Project Scope / Operational Notes</label>
+          <textarea id="c-msg" name="message" rows="3" placeholder="Briefly describe your field assets, location, and monitoring objectives..."></textarea>
+        </div>
+        
+        <button class="btn btn-whatsapp" type="submit" style="width:100%">
+          <span>Continue via WhatsApp</span> &rarr;
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <script is:inline>
+    const form = document.getElementById('whatsapp-inquiry-form');
+    form?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('c-name')?.value || '';
+      const module = document.getElementById('c-module')?.value || '';
+      const notes = document.getElementById('c-msg')?.value || '';
+      
+      const text = `Hello CV Karya Artha Gemilang (KAG),\n\nName / Organization: ${name}\nTarget Module: ${module}\nProject Scope: ${notes}\n\nI would like to request technical consultation regarding Sentry SCADA. Thank you.`;
+      const waUrl = `https://wa.me/6282113910596?text=${encodeURIComponent(text)}`;
+      window.open(waUrl, '_blank', 'noopener,noreferrer');
+    });
+  </script>
+</Base>
