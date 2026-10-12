@@ -2,8 +2,7 @@
     admin off
 }
 
-# Production domain with automated Let's Encrypt / ZeroSSL TLS certificates
-sentrydashboard.com, www.sentrydashboard.com {
+:80 {
     encode gzip zstd
 
     # REST API -> backend Rust Axum container
