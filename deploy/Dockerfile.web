@@ -10,6 +10,8 @@ RUN npm run build
 # Stage 2: Build Vite React SCADA application (Web target)
 FROM node:20-alpine AS build-app
 WORKDIR /build/app
+ENV VITE_TARGET=web
+ENV VITE_API_BASE=/api/v1
 COPY app/package*.json ./
 RUN npm ci
 COPY app/ ./

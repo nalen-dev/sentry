@@ -37,6 +37,7 @@ yarn-debug.log*
 .env
 .env.*
 !.env.example
+!app/.env.web
 
 # IDE and OS
 .DS_Store
