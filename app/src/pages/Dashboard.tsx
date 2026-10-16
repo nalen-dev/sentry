@@ -81,8 +81,8 @@ export default function Dashboard() {
   // Pagination for Left Panel
   const itemsPerPage = isFullscreen ? 2 : 4;
   const [currentPage, setCurrentPage] = useState(1);
-  const [warningThreshold, setWarningThreshold] = useState(45);
-  const [criticalThreshold, setCriticalThreshold] = useState(60);
+  const [warningThreshold, setWarningThreshold] = useState(60);
+  const [criticalThreshold, setCriticalThreshold] = useState(70);
   const [ackedAlarms, setAckedAlarms] = useState<Set<number>>(new Set());
   const [isPopupMuted, setIsPopupMuted] = useState(false);
   

@@ -76,6 +76,27 @@ const mapCommandToRequest = (command: string, args?: InvokeArgs): RequestConfig 
   }
 };
 
+export const DEFAULT_MAP_CALIBRATIONS = [
+  { main_group: 'BC4 A', start_m: 0, end_m: 591, start_svg_x: 513.0, start_svg_y: 290.0, end_svg_x: 40.0, end_svg_y: 290.0 },
+  { main_group: 'BC4 B', start_m: 0, end_m: 877, start_svg_x: 513.0, start_svg_y: 314.0, end_svg_x: 1225.0, end_svg_y: 314.0 },
+  { main_group: 'BC5', start_m: 0, end_m: 150, start_svg_x: 1235.0, start_svg_y: 314.0, end_svg_x: 1355.0, end_svg_y: 314.0 },
+  { main_group: 'BC45-MOTOR', start_m: 0, end_m: 40, start_svg_x: 1209.0, start_svg_y: 290.0, end_svg_x: 1241.0, end_svg_y: 290.0 },
+  { main_group: 'TN12', start_m: 0, end_m: 100, start_svg_x: 60.0, start_svg_y: 314.0, end_svg_x: 130.0, end_svg_y: 314.0 },
+  { main_group: 'TN23', start_m: 0, end_m: 100, start_svg_x: 130.0, start_svg_y: 314.0, end_svg_x: 200.0, end_svg_y: 314.0 },
+  { main_group: 'TN34', start_m: 0, end_m: 100, start_svg_x: 200.0, start_svg_y: 314.0, end_svg_x: 270.0, end_svg_y: 314.0 },
+  { main_group: 'TN45', start_m: 0, end_m: 100, start_svg_x: 270.0, start_svg_y: 314.0, end_svg_x: 340.0, end_svg_y: 314.0 },
+  { main_group: 'TN56', start_m: 0, end_m: 100, start_svg_x: 340.0, start_svg_y: 314.0, end_svg_x: 410.0, end_svg_y: 314.0 },
+  { main_group: 'TN6CR', start_m: 0, end_m: 100, start_svg_x: 410.0, start_svg_y: 314.0, end_svg_x: 513.0, end_svg_y: 314.0 },
+  { main_group: 'TCM6CR', start_m: 0, end_m: 100, start_svg_x: 410.0, start_svg_y: 314.0, end_svg_x: 513.0, end_svg_y: 314.0 },
+  { main_group: 'BE34M', start_m: 0, end_m: 100, start_svg_x: 235.0, start_svg_y: 282.0, end_svg_x: 305.0, end_svg_y: 282.0 },
+  { main_group: 'BEK4CR', start_m: 0, end_m: 100, start_svg_x: 305.0, start_svg_y: 282.0, end_svg_x: 513.0, end_svg_y: 282.0 },
+  { main_group: 'BEK56M', start_m: 0, end_m: 100, start_svg_x: 375.0, start_svg_y: 274.0, end_svg_x: 445.0, end_svg_y: 274.0 },
+  { main_group: 'BEK6CR', start_m: 0, end_m: 100, start_svg_x: 445.0, start_svg_y: 274.0, end_svg_x: 513.0, end_svg_y: 274.0 },
+  { main_group: 'TCM16', start_m: 0, end_m: 600, start_svg_x: 60.0, start_svg_y: 314.0, end_svg_x: 513.0, end_svg_y: 314.0 },
+  { main_group: 'BEK34', start_m: 0, end_m: 300, start_svg_x: 235.0, start_svg_y: 282.0, end_svg_x: 513.0, end_svg_y: 282.0 },
+  { main_group: 'BEK56', start_m: 0, end_m: 300, start_svg_x: 375.0, start_svg_y: 274.0, end_svg_x: 513.0, end_svg_y: 274.0 },
+];
+
 export const httpSource: DataSource = async (command, args) => {
   // Mock/no-op fallback untuk command khusus desktop yang dipanggil di web
   if (command === "ack_all_alarms") {
@@ -86,7 +107,7 @@ export const httpSource: DataSource = async (command, args) => {
     return false;
   }
   if (command === "get_map_calibration") {
-    return [];
+    return DEFAULT_MAP_CALIBRATIONS;
   }
   if (command === "get_users") {
     return [];

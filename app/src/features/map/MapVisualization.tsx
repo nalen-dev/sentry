@@ -105,7 +105,7 @@ const GROUPS_MAPPING = [
   { id: 'BC45-MOTOR', color: GROUP_COLORS['BC45-MOTOR'], getCoords: () => [offsetCoords(BC_MAIN_02_COORDINATES.slice(3, 5), +0.000030, +0.000000)], anchorIdx: 0, dir: 'left', offset: [-15, 0] },
 ];
 
-export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, segments = [], warningThreshold = 45, criticalThreshold = 60, setSelectedSegment }: MapVisualizationProps) {
+export default function MapVisualization({ isFullscreen, mapZoom, setMapZoom, segments = [], warningThreshold = 60, criticalThreshold = 70, setSelectedSegment }: MapVisualizationProps) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {

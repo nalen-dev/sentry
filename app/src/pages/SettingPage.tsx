@@ -80,10 +80,6 @@ export default function SettingPage() {
   const isTauri = '__TAURI_INTERNALS__' in window;
 
   const loadBackendData = async () => {
-    if (!isTauri) {
-      console.warn("Running in browser. Backend fetch bypassed.");
-      return;
-    }
     try {
       // 1. Fetch settings
       const settings: Record<string, string> = await invoke('get_all_settings');

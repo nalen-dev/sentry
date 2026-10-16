@@ -627,7 +627,7 @@ pub async fn groups_history(
 
     for r in rows {
         let ts: DateTime<Utc> = r.get("ts");
-        let time_str = ts.format("%H:%M").to_string();
+        let time_str = ts.to_rfc3339();
         let group: String = r.get("main_group");
         let temp: f32 = r.get("max_temp");
         map.entry(time_str).or_default().insert(group, temp);

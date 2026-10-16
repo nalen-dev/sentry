@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Layout } from 'lucide-react';
 import { invoke } from "../../data";
+import { DEFAULT_MAP_CALIBRATIONS } from "../../data/httpSource";
 
 interface MapCalibration {
   main_group: string;
@@ -34,7 +35,7 @@ interface Props {
 
 export default function DiagramVisualization({ isFullscreen, segments, warningThreshold, criticalThreshold, hideHeader, alwaysShowPin }: Props) {
   
-  const [calibrations, setCalibrations] = useState<MapCalibration[]>([]);
+  const [calibrations, setCalibrations] = useState<MapCalibration[]>(DEFAULT_MAP_CALIBRATIONS);
 
   useEffect(() => {
     invoke<MapCalibration[]>('get_map_calibration')

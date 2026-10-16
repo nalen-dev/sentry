@@ -37,7 +37,7 @@ interface SegmentDetailModalProps {
   criticalThreshold?: number;
 }
 
-export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename, warningThreshold = 45, criticalThreshold = 60 }: SegmentDetailModalProps) {
+export default function SegmentDetailModal({ segment, onClose, isAdmin, onRename, warningThreshold = 60, criticalThreshold = 70 }: SegmentDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(segment.name);
   const [notes, setNotes] = useState(() => localStorage.getItem(`notes_${segment.id}`) || '');

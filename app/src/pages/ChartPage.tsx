@@ -41,8 +41,8 @@ export default function ChartPage() {
   const [mappings, setMappings] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string>('');
   
-  const [warningThreshold, setWarningThreshold] = useState(45);
-  const [criticalThreshold, setCriticalThreshold] = useState(60);
+  const [warningThreshold, setWarningThreshold] = useState(60);
+  const [criticalThreshold, setCriticalThreshold] = useState(70);
   const [spatialData, setSpatialData] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(false); // Default false, only true when explicitly fetching
@@ -95,23 +95,31 @@ export default function ChartPage() {
         setHistSummary(summary);
         
         if (fetchAbortRef.current) return;
-        
-        if (data.length === 0) {
-          setHistData([]);
-          setHistGroups([]);
-          setLoading(false);
-          return;
-        }
-        
+
         const groupsSet = new Set<string>();
-        mappingsData.forEach(m => {
+        (mappingsData || []).forEach((m: any) => {
           if (m.main_group && m.main_group !== 'Unassigned') {
             groupsSet.add(m.main_group);
           }
         });
         
+        if (data.length === 0) {
+          setHistData([]);
+          setHistGroups(Array.from(groupsSet));
+          setLoading(false);
+          return;
+        }
+        
         const flatData = data.map(pt => {
-          const row: any = { time: pt.time };
+          let timeLabel = pt.time;
+          if (pt.time && (pt.time.includes('T') || pt.time.includes('-') || pt.time.includes('Z'))) {
+            try {
+              timeLabel = new Date(pt.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+            } catch {
+              timeLabel = pt.time;
+            }
+          }
+          const row: any = { time: timeLabel };
           for (const [g, val] of Object.entries(pt.groups)) {
             row[g] = val;
             groupsSet.add(g);
